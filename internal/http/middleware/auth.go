@@ -38,7 +38,7 @@ func AuthMiddleware(verifier TokenVerifier) gin.HandlerFunc {
 			return
 		}
 
-		ctx.Set(constant.CtxUserUUID, claims.UserUUID)
+		ctx.Set(constant.CtxUserUUID, claims.UserUUID.String())
 		ctx.Set(constant.CtxUserLogin, claims.Login)
 		ctx.Set(constant.CtxSubscribeStatus, claims.Subscribe)
 		ctx.Next()

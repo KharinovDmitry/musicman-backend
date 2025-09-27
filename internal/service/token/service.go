@@ -21,11 +21,11 @@ const (
 )
 
 type Service struct {
-	secret string
+	secret []byte
 }
 
 func New(secret string) *Service {
-	return &Service{secret: secret}
+	return &Service{secret: []byte(secret)}
 }
 
 func (s *Service) CreateToken(ctx context.Context, user entity.User) (string, error) {
@@ -54,7 +54,7 @@ func (s *Service) CreateToken(ctx context.Context, user entity.User) (string, er
 }
 
 func (s *Service) VerifyToken(ctx context.Context, tokenString string) (entity.JWTClaims, error) {
-	token, err := jwt.Parse(tokenString, s.keyFunc)
+	token, err := jwt.ParseWithClaims(tokenString, &entity.JWTClaims{}, s.keyFunc)
 	if err != nil {
 		return entity.JWTClaims{}, fmt.Errorf("parse token failed: %w", err)
 	}

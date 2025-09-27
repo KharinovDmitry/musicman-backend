@@ -12,7 +12,6 @@ require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/lib/pq v1.10.9
 	github.com/pressly/goose/v3 v3.25.0
-	gitlab.com/kforge/kforge-sdk v0.1.1
 	golang.org/x/crypto v0.40.0
 	gopkg.in/yaml.v3 v3.0.1
 )
