@@ -1,10 +1,10 @@
 postgres:
-  host: ""
-  port: ""
-  username: ""
-  password: ""
-  database: ""
-  app_name: ""
+  host: "postgres"
+  port: "5432"
+  username: "musicman"
+  password: "musicman"
+  database: "musicman"
+  app_name: "musicman"
   max_conns: 3
 
 http:
