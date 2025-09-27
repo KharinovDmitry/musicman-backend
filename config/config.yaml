@@ -1,0 +1,11 @@
+postgres:
+  host: ""
+  port: ""
+  username: ""
+  password: ""
+  database: ""
+  app_name: ""
+  max_conns: 3
+
+http:
+  addr: ":8080"
