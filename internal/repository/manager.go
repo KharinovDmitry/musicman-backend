@@ -3,12 +3,18 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/musicman-backend/cmd/migrator"
+	"github.com/musicman-backend/internal/repository/postgres/users"
+
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/musicman-backend/config"
 	"github.com/musicman-backend/internal/repository/postgres"
 )
 
 type Manager struct {
+	UserRepository *users.Repository
+
 	pg *pgxpool.Pool
 }
 
@@ -20,6 +26,13 @@ func Init(ctx context.Context, cfg *config.Config) (*Manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to postgres: %w", err)
 	}
+
+	err = migrator.Migrate(cfg.Postgres.ToDSN())
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply migrations: %w", err)
+	}
+
+	manager.UserRepository = users.NewRepository(manager.pg)
 
 	return &manager, nil
 }

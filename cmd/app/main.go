@@ -15,6 +15,17 @@ const (
 	defaultPath = "config/config.yaml"
 )
 
+// @title MusicMan Backend API
+// @version 1.0
+// @description Привет, Полина! Это документация для тебя, прикладываю также задачу на pm.is74.ru
+
+// @BasePath /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description JWT токен в формате: "Bearer {token}"
+
 func main() {
 	path := defaultPath
 	if len(os.Args) > 2 {
