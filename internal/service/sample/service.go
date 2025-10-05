@@ -59,7 +59,7 @@ func (s *SampleService) CreateSample(ctx context.Context, req dto.CreateSampleRe
 	if req.PackID != nil {
 		_, err := s.packRepo.GetByID(ctx, *req.PackID)
 		if err != nil {
-			return nil, fmt.Errorf("pack not found while creating sample: %w", err)
+			return nil, fmt.Errorf("pack not found while creating music: %w", err)
 		}
 	}
 
@@ -86,7 +86,7 @@ func (s *SampleService) CreateSample(ctx context.Context, req dto.CreateSampleRe
 	err = s.sampleRepo.Create(ctx, sample)
 	if err != nil {
 		s.storage.DeleteFile(ctx, s.bucketName, minioKey)
-		return nil, fmt.Errorf("failed to create sample: %w", err)
+		return nil, fmt.Errorf("failed to create music: %w", err)
 	}
 
 	return sample, nil

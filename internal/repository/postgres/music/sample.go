@@ -1,4 +1,4 @@
-package sample
+package music
 
 import (
 	"database/sql"
@@ -11,15 +11,15 @@ import (
 	"golang.org/x/net/context"
 )
 
-type PostgresSampleRepository struct {
+type Sample struct {
 	db *pgxpool.Pool
 }
 
-func NewSampleRepository(db *pgxpool.Pool) *PostgresSampleRepository {
-	return &PostgresSampleRepository{db: db}
+func NewSample(db *pgxpool.Pool) *Sample {
+	return &Sample{db: db}
 }
 
-func (r *PostgresSampleRepository) Create(ctx context.Context, sample entity.Sample) error {
+func (r *Sample) Create(ctx context.Context, sample entity.Sample) error {
 	query := `
 	INSERT INTO samples (title, author, description, genre, duration, size, minio_key, pack_id, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6, $8, $9, $10, $11, $12, $13)`
@@ -31,7 +31,7 @@ func (r *PostgresSampleRepository) Create(ctx context.Context, sample entity.Sam
 	return fmt.Errorf("failed to create sample in DB: %w", err)
 }
 
-func (r *PostgresSampleRepository) GetByID(ctx context.Context, id uuid.UUID) (entity.Sample, error) {
+func (r *Sample) GetByID(ctx context.Context, id uuid.UUID) (entity.Sample, error) {
 	query := `
 	SELECT id, title, author, description, genre, duration, size, minio_key, pack_id, created_at, updated_at
 	FROM samples WHERE id = $1`
@@ -40,7 +40,7 @@ func (r *PostgresSampleRepository) GetByID(ctx context.Context, id uuid.UUID) (e
 	return r.scanSample(row)
 }
 
-func (r *PostgresSampleRepository) GetAll(ctx context.Context) ([]entity.Sample, error) {
+func (r *Sample) GetAll(ctx context.Context) ([]entity.Sample, error) {
 	query := `
 	SELECT id, title, author, description, genre, duration, size, minio_key, pack_id, created_at, updated_at
 	FROM samples ORDER BY created_at DESC`
@@ -77,7 +77,7 @@ func (r *PostgresSampleRepository) GetAll(ctx context.Context) ([]entity.Sample,
 	return samples, nil
 }
 
-func (r *PostgresSampleRepository) GetByPack(ctx context.Context, packID uuid.UUID) ([]entity.Sample, error) {
+func (r *Sample) GetByPack(ctx context.Context, packID uuid.UUID) ([]entity.Sample, error) {
 	query := `
 	SELECT id, title, author, description, genre, key, duration, size, minio_key, pack_id, created_at, updated_at
 	FROM samples WHERE pack_id = $1 ORDER BY created_at DESC`
@@ -114,7 +114,7 @@ func (r *PostgresSampleRepository) GetByPack(ctx context.Context, packID uuid.UU
 	return samples, nil
 }
 
-func (r *PostgresSampleRepository) Update(ctx context.Context, sample entity.Sample) error {
+func (r *Sample) Update(ctx context.Context, sample entity.Sample) error {
 	query := `
 	UPDATE samples SET title=$1, author=$2, description=$3, genre=$4, 
 	                   duration=$7, size=$8, minio_key=$9, pack_id=$10, updated_at=$11
@@ -128,14 +128,14 @@ func (r *PostgresSampleRepository) Update(ctx context.Context, sample entity.Sam
 	return err
 }
 
-func (r *PostgresSampleRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *Sample) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM samples WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 
 	return fmt.Errorf("failed delete sample from DB: %w", err)
 }
 
-func (r *PostgresSampleRepository) scanSample(row pgx.Row) (entity.Sample, error) {
+func (r *Sample) scanSample(row pgx.Row) (entity.Sample, error) {
 	var sample entity.Sample
 	var genre string
 	var packID sql.NullString

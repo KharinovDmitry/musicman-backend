@@ -1,4 +1,4 @@
-package sample
+package music
 
 import (
 	"context"
@@ -10,15 +10,15 @@ import (
 	"github.com/musicman-backend/internal/domain/entity"
 )
 
-type PostgresPackRepository struct {
+type Pack struct {
 	db *pgxpool.Pool
 }
 
-func NewPostgresPackRepository(db *pgxpool.Pool) *PostgresPackRepository {
-	return &PostgresPackRepository{db: db}
+func NewPack(db *pgxpool.Pool) *Pack {
+	return &Pack{db: db}
 }
 
-func (r *PostgresPackRepository) Create(ctx context.Context, pack entity.Pack) error {
+func (r *Pack) Create(ctx context.Context, pack entity.Pack) error {
 	query := `
 	INSERT INTO packs (id, name, description, genre, author, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6, $7)`
@@ -30,7 +30,7 @@ func (r *PostgresPackRepository) Create(ctx context.Context, pack entity.Pack) e
 	return err
 }
 
-func (r *PostgresPackRepository) GetByID(ctx context.Context, id uuid.UUID) (entity.Pack, error) {
+func (r *Pack) GetByID(ctx context.Context, id uuid.UUID) (entity.Pack, error) {
 	query := `
 	SELECT id, name, description, genre, author, created_at, updated_at
 	FROM packs WHERE id = $1`
@@ -45,7 +45,7 @@ func (r *PostgresPackRepository) GetByID(ctx context.Context, id uuid.UUID) (ent
 	return pack, fmt.Errorf("failed get pack from db: %w", err)
 }
 
-func (r *PostgresPackRepository) GetAll(ctx context.Context) ([]entity.Pack, error) {
+func (r *Pack) GetAll(ctx context.Context) ([]entity.Pack, error) {
 	query := `
 	SELECT id, name, description, genre, author, created_at, updated_at
 	FROM packs ORDER BY created_at DESC`
@@ -72,7 +72,7 @@ func (r *PostgresPackRepository) GetAll(ctx context.Context) ([]entity.Pack, err
 	return packs, nil
 }
 
-func (r *PostgresPackRepository) Update(ctx context.Context, pack entity.Pack) error {
+func (r *Pack) Update(ctx context.Context, pack entity.Pack) error {
 	query := `
 	UPDATE packs SET name=$1, description=$2, genre=$3, author=$4, updated_at=$5
 	WHERE id=$6`
@@ -84,7 +84,7 @@ func (r *PostgresPackRepository) Update(ctx context.Context, pack entity.Pack) e
 	return fmt.Errorf("failed update pack from db: %w", err)
 }
 
-func (r *PostgresPackRepository) Delete(ctx context.Context, id string) error {
+func (r *Pack) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM packs WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return fmt.Errorf("failed delete pack from db: %w", err)
