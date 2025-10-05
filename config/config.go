@@ -2,8 +2,9 @@ package config
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -14,6 +15,14 @@ type Config struct {
 
 type HttpConfig struct {
 	Addr string `yaml:"addr"`
+}
+
+type MinioConfig struct {
+	Endpoint   string `yaml:"endpoint"`
+	AccessKey  string `yaml:"access_key"`
+	SecretKey  string `yaml:"secret_key"`
+	UseSSL     bool   `yaml:"use_ssl"`
+	BucketName string `yaml:"bucket_name"`
 }
 
 const dsnTemplate = "host=%s port=%s user=%s password=%s dbname=%s application_name=%s sslmode=disable"
