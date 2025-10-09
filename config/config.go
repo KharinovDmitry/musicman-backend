@@ -23,6 +23,7 @@ type MinioConfig struct {
 	SecretKey  string `yaml:"secret_key"`
 	UseSSL     bool   `yaml:"use_ssl"`
 	BucketName string `yaml:"bucket_name"`
+	MaxRetries int    `yaml:"max_retries"`
 }
 
 const dsnTemplate = "host=%s port=%s user=%s password=%s dbname=%s application_name=%s sslmode=disable"

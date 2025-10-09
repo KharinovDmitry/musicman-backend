@@ -13,6 +13,7 @@ minio:
   secret_key: "minioadmin"
   use_ssl: false
   bucket_name: "samples"
+  max_retries: 5
 
 http:
   addr: ":8080"

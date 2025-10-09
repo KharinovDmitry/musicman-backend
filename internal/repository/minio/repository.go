@@ -3,67 +3,34 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/musicman-backend/config"
 )
 
-type Minio struct {
-	client     *minio.Client
-	bucketName string
-}
-
-func NewMinio(endpoint, accessKey, secretKey, bucketName string, useSSL bool) (*Minio, error) {
-	client, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
-		Secure: useSSL,
+func InitMinioClient(minioConfig config.MinioConfig) (*minio.Client, error) {
+	client, err := minio.New(minioConfig.Endpoint, &minio.Options{
+		Creds:      credentials.NewStaticV4(minioConfig.AccessKey, minioConfig.SecretKey, ""),
+		Secure:     minioConfig.UseSSL,
+		MaxRetries: minioConfig.MaxRetries,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MinIO client: %w", err)
 	}
 
-	repo := &Minio{
-		client:     client,
-		bucketName: bucketName,
+	return client, nil
+}
+
+type Minio struct {
+	client *minio.Client
+}
+
+func NewMinio(client *minio.Client) *Minio {
+	return &Minio{
+		client: client,
 	}
-
-	// Create bucket if not exists
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	exists, err := client.BucketExists(ctx, bucketName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check bucket existence: %w", err)
-	}
-
-	if !exists {
-		err = client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create bucket: %w", err)
-		}
-
-		// Set bucket policy if needed
-		policy := `{
-			"Version": "2012-10-17",
-			"Statement": [
-				{
-					"Effect": "Allow",
-					"Principal": {"AWS": ["*"]},
-					"Action": ["s3:GetObject"],
-					"Resource": ["arn:aws:s3:::` + bucketName + `/*"]
-				}
-			]
-		}`
-
-		err = client.SetBucketPolicy(ctx, bucketName, policy)
-		if err != nil {
-			log.Printf("Warning: Failed to set bucket policy: %v", err)
-		}
-	}
-
-	return repo, nil
 }
 
 func (m *Minio) UploadFile(ctx context.Context, bucketName string, objectName string, filePath string) error {
@@ -96,5 +63,23 @@ func (m *Minio) DeleteFile(ctx context.Context, bucketName string, objectName st
 	if err != nil {
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
+	return nil
+}
+
+func (m *Minio) CreateBucketIfNotExists(ctx context.Context, bucketName string) error {
+	exists, err := m.client.BucketExists(ctx, bucketName)
+	if err != nil {
+		return fmt.Errorf("failed to check bucket existence: %w", err)
+	}
+
+	if exists {
+		return nil
+	}
+
+	err = m.client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create bucket: %w", err)
+	}
+
 	return nil
 }

@@ -1,4 +1,4 @@
-package sample
+package music
 
 import (
 	"net/http"

@@ -1,12 +1,16 @@
 package entity
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Genre string
 
 // Sample - доменная модель сэмпла
 type Sample struct {
-	ID          string
+	ID          uuid.UUID
 	Title       string
 	Author      string
 	Description string
@@ -14,14 +18,14 @@ type Sample struct {
 	Duration    float64
 	Size        int64
 	MinioKey    string
-	PackID      *string //   ну типа нуллабл :)
+	PackID      *uuid.UUID //   ну типа нуллабл :)
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
 // Pack - доменная модель пака
 type Pack struct {
-	ID          string
+	ID          uuid.UUID
 	Name        string
 	Description string
 	Genre       Genre

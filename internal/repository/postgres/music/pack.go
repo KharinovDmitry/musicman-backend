@@ -84,7 +84,7 @@ func (r *Pack) Update(ctx context.Context, pack entity.Pack) error {
 	return fmt.Errorf("failed update pack from db: %w", err)
 }
 
-func (r *Pack) Delete(ctx context.Context, id string) error {
+func (r *Pack) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM packs WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return fmt.Errorf("failed delete pack from db: %w", err)

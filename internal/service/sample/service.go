@@ -2,6 +2,7 @@ package sample
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/musicman-backend/internal/domain"
 	"github.com/musicman-backend/internal/domain/entity"
 	"github.com/musicman-backend/internal/http/dto"
+	"github.com/musicman-backend/internal/repository"
+	"github.com/musicman-backend/internal/service"
 )
 
 const BucketName = "samples"
@@ -37,7 +40,7 @@ type FileRepository interface {
 	DeleteFile(ctx context.Context, bucketName, objectName string) error
 }
 
-type SampleService struct {
+type Sample struct {
 	sampleRepo SampleRepository
 	packRepo   PackRepository
 	fileRepo   FileRepository
@@ -47,19 +50,20 @@ func NewSampleService(
 	sampleRepo SampleRepository,
 	packRepo PackRepository,
 	fileRepo FileRepository,
-) *SampleService {
-	return &SampleService{
+) *Sample {
+	return &Sample{
 		sampleRepo: sampleRepo,
 		packRepo:   packRepo,
 		fileRepo:   fileRepo,
 	}
 }
 
-func (s *SampleService) CreateSample(ctx context.Context, req dto.CreateSampleRequest, filePath string, fileSize int64) (entity.Sample, error) {
+func (s *Sample) CreateSample(ctx context.Context, req dto.CreateSampleRequest, byte []string, fileSize int64) (entity.Sample, error) {
+	var sample entity.Sample
+
 	if req.PackID != nil {
-		_, err := s.packRepo.GetByID(ctx, *req.PackID)
-		if err != nil {
-			return nil, fmt.Errorf("pack not found while creating music: %w", err)
+		if _, err := s.packRepo.GetByID(ctx, *req.PackID); err != nil {
+			return sample, fmt.Errorf("pack not found while creating music: %w", err)
 		}
 	}
 
@@ -67,16 +71,14 @@ func (s *SampleService) CreateSample(ctx context.Context, req dto.CreateSampleRe
 
 	err := s.fileRepo.UploadFile(ctx, BucketName, minioKey, filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload file: %w", err)
+		return sample, fmt.Errorf("failed to upload sample file: %w", err)
 	}
 
-	sample := entity.Sample{
+	sample = entity.Sample{
 		Title:       req.Title,
 		Author:      req.Author,
 		Description: req.Description,
 		Genre:       req.Genre,
-		BPM:         req.BPM,
-		Key:         req.Key,
 		Duration:    req.Duration,
 		Size:        fileSize,
 		MinioKey:    minioKey,
@@ -85,89 +87,91 @@ func (s *SampleService) CreateSample(ctx context.Context, req dto.CreateSampleRe
 
 	err = s.sampleRepo.Create(ctx, sample)
 	if err != nil {
-		s.storage.DeleteFile(ctx, s.bucketName, minioKey)
-		return nil, fmt.Errorf("failed to create music: %w", err)
+		s.fileRepo.DeleteFile(ctx, BucketName, minioKey)
+		return sample, fmt.Errorf("failed to create sample: %w", err)
 	}
 
 	return sample, nil
 }
 
-func (s *SampleService) GetSample(ctx context.Context, id string) (*domain.Sample, error) {
-	return s.sampleRepo.GetByID(ctx, id)
+func (s *Sample) GetSample(ctx context.Context, id uuid.UUID) (entity.Sample, error) {
+	sample, err := s.sampleRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.SampleNotFound) {
+			return sample, service.SampleNotFoundError
+		}
+
+		return sample, fmt.Errorf("failed to get sample: %w", err)
+	}
+
+	return sample, nil
 }
 
-func (s *SampleService) GetAllSamples(ctx context.Context) ([]domain.Sample, error) {
-	return s.sampleRepo.GetAll(ctx)
+func (s *Sample) GetAllSamples(ctx context.Context) ([]entity.Sample, error) {
+	samples, err := s.sampleRepo.GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get samples: %w", err)
+	}
 }
 
-func (s *SampleService) UpdateSample(ctx context.Context, id string, req dto.UpdateSampleRequest) (*domain.Sample, error) {
+func (s *Sample) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description *string, genre *entity.Genre) (entity.Sample, error) {
 	existing, err := s.sampleRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return existing, fmt.Errorf("failed to get sample by id: %w", err)
 	}
 
-	if req.Title != nil {
-		existing.Title = *req.Title
+	if title != nil {
+		existing.Title = *title
 	}
-	if req.Author != nil {
-		existing.Author = *req.Author
+	if author != nil {
+		existing.Author = *author
 	}
-	if req.Description != nil {
-		existing.Description = *req.Description
+	if description != nil {
+		existing.Description = *description
 	}
-	if req.Genre != nil {
-		existing.Genre = *req.Genre
+	if genre != nil {
+		existing.Genre = *genre
 	}
-	if req.BPM != nil {
-		existing.BPM = *req.BPM
-	}
-	if req.Key != nil {
-		existing.Key = *req.Key
-	}
-	if req.PackID != nil {
-		if *req.PackID != "" {
-			_, err := s.packRepo.GetByID(ctx, *req.PackID)
-			if err != nil {
-				return nil, fmt.Errorf("pack not found: %w", err)
-			}
+	if packID != nil {
+		if _, err := s.packRepo.GetByID(ctx, *packID); err != nil {
+			return existing, fmt.Errorf("pack not found: %w", err)
 		}
-		existing.PackID = req.PackID
+		existing.PackID = packID
 	}
 
-	err = s.sampleRepo.Update(ctx, existing)
-	if err != nil {
-		return nil, err
+	if err = s.sampleRepo.Update(ctx, existing); err != nil {
+		return existing, fmt.Errorf("failed to update sample: %w", err)
 	}
 
 	return existing, nil
 }
 
-func (s *SampleService) DeleteSample(ctx context.Context, id string) error {
+func (s *Sample) DeleteSample(ctx context.Context, id uuid.UUID) error {
 	sample, err := s.sampleRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	err = s.storage.DeleteFile(ctx, s.bucketName, sample.MinioKey)
-	if err != nil {
-		return fmt.Errorf("failed to delete file from storage: %w", err)
+	if err = s.fileRepo.DeleteFile(ctx, BucketName, sample.MinioKey); err != nil {
+		return fmt.Errorf("failed to delete sample file : %w", err)
 	}
 
-	return s.sampleRepo.Delete(ctx, id)
+	if err = s.sampleRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete sample: %w", err)
+	}
 }
 
-func (s *SampleService) GetSampleDownloadURL(ctx context.Context, id string) (string, error) {
+func (s *Sample) GetSampleDownloadURL(ctx context.Context, id uuid.UUID) (string, error) {
 	sample, err := s.sampleRepo.GetByID(ctx, id)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get sample download url: %w", err)
 	}
 
-	return s.storage.GetFileURL(ctx, s.bucketName, sample.MinioKey)
+	return s.fileRepo.GetFileURL(ctx, BucketName, sample.MinioKey)
 }
 
-// Pack methods
-func (s *SampleService) CreatePack(ctx context.Context, req dto.CreatePackRequest) (*domain.Pack, error) {
-	pack := &domain.Pack{
+func (s *Sample) CreatePack(ctx context.Context, name, description, author string, genre entity.Genre) (entity.Pack, error) {
+	pack := entity.Pack{
 		Name:        req.Name,
 		Description: req.Description,
 		Genre:       req.Genre,
@@ -182,74 +186,65 @@ func (s *SampleService) CreatePack(ctx context.Context, req dto.CreatePackReques
 	return pack, nil
 }
 
-func (s *SampleService) GetPack(ctx context.Context, id string) (*domain.Pack, error) {
-	return s.packRepo.GetByID(ctx, id)
-}
-
-func (s *SampleService) GetAllPacks(ctx context.Context) ([]domain.Pack, error) {
-	return s.packRepo.GetAll(ctx)
-}
-
-func (s *SampleService) UpdatePack(ctx context.Context, id string, req dto.UpdatePackRequest) (*domain.Pack, error) {
-	existing, err := s.packRepo.GetByID(ctx, id)
+func (s *Sample) GetPack(ctx context.Context, id uuid.UUID) (entity.Pack, error) {
+	pack, err := s.packRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return pack, fmt.Errorf("failed to get all packs: %w", err)
 	}
 
-	if req.Name != nil {
-		existing.Name = *req.Name
-	}
-	if req.Description != nil {
-		existing.Description = *req.Description
-	}
-	if req.Genre != nil {
-		existing.Genre = *req.Genre
-	}
-	if req.Author != nil {
-		existing.Author = *req.Author
-	}
-
-	err = s.packRepo.Update(ctx, existing)
-	if err != nil {
-		return nil, err
-	}
-
-	return existing, nil
+	return pack, nil
 }
 
-func (s *SampleService) DeletePack(ctx context.Context, id string) error {
+func (s *Sample) GetAllPacks(ctx context.Context) ([]entity.Pack, error) {
+	packs, err := s.packRepo.GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all packs: %w", err)
+	}
+
+	return packs, nil
+}
+
+func (s *Sample) UpdatePack(ctx context.Context, id uuid.UUID, name, description string, genre entity.Genre) error {
+	pack, err := s.packRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed get pack by id to update it: %w", err)
+	}
+
+	if name == "" {
+		pack.Name = name
+	}
+	if description == "" {
+		pack.Description = description
+	}
+	if genre == "" {
+		pack.Genre = genre
+	}
+
+	err = s.packRepo.Update(ctx, pack)
+	if err != nil {
+		return fmt.Errorf("failed udpate pack: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Sample) DeletePack(ctx context.Context, id uuid.UUID) error {
 	return s.packRepo.Delete(ctx, id)
 }
 
-func (s *SampleService) GetPackWithSamples(ctx context.Context, id string) (*domain.PackWithSamples, error) {
+func (s *Sample) GetPackWithSamples(ctx context.Context, id uuid.UUID) (entity.Pack, []entity.Sample, error) {
+	var pack entity.Pack
+	var samples []entity.Sample
+
 	pack, err := s.packRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return pack, samples, fmt.Errorf("failed to get pack: %w", err)
 	}
 
-	samples, err := s.sampleRepo.GetByPack(ctx, id)
+	samples, err = s.sampleRepo.GetByPack(ctx, id)
 	if err != nil {
-		return nil, err
+		return pack, samples, fmt.Errorf("failed to get samples by pack: %w", err)
 	}
 
-	return &domain.PackWithSamples{
-		Pack:    *pack,
-		Samples: samples,
-	}, nil
-}
-
-func (s *SampleService) GetSampleCountByPack(ctx context.Context, packID string) (int, error) {
-	return s.sampleRepo.CountByPack(ctx, packID)
-}
-
-func (s *SampleService) GetGenres() []dto.GenreResponse {
-	return []dto.GenreResponse{
-		{Value: string(domain.GenreHipHop), Label: "Hip Hop"},
-		{Value: string(domain.GenreRock), Label: "Rock"},
-		{Value: string(domain.GenreElectronic), Label: "Electronic"},
-		{Value: string(domain.GenreJazz), Label: "Jazz"},
-		{Value: string(domain.GenreClassical), Label: "Classical"},
-		{Value: string(domain.GenrePop), Label: "Pop"},
-		{Value: string(domain.GenreRB), Label: "R&B"},
-	}
+	return pack, samples, nil
 }
