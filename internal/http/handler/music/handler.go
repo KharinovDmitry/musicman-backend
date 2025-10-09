@@ -1,58 +1,68 @@
 package music
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/musicman-backend/internal/domain"
+	"github.com/musicman-backend/internal/errors"
+	api "github.com/musicman-backend/internal/http"
 	"github.com/musicman-backend/internal/http/dto"
-	"github.com/musicman-backend/internal/service"
 )
 
-type Music struct {
-	sampleService *service.SampleService
+type Handler struct {
+	sampleService api.MusicService
 }
 
-func NewSampleHandler(sampleService *service.SampleService) *Music {
-	return &Music{
+func New(sampleService api.MusicService) *Handler {
+	return &Handler{
 		sampleService: sampleService,
 	}
 }
 
 // GetSamples godoc
-// @Summary Get all samples
-// @Description Get all audio samples
+// @Summary Получение всех семплов (без файлов)
+// @Description Получение всех семплов с информацией о них
 // @Tags samples
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {array} dto.SampleResponse
-// @Router /samples [get]
-func (h *Music) GetSamples(c *gin.Context) {
-	samples, err := h.sampleService.GetAllSamples(c.Request.Context())
+// @Success 200 {array} dto.SampleDTO
+// @Router /api/v1/samples [get]
+func (h *Handler) GetSamples(c *gin.Context) {
+	samples, err := h.sampleService.GetSamples(c.Request.Context())
+	if errors.Is(err, domain.ErrNotFound) {
+		c.Status(http.StatusNotFound)
+	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
-	response := make([]dto.SampleResponse, len(samples))
+	response := make([]dto.SampleDTO, len(samples))
 	for i, sample := range samples {
-		downloadURL, _ := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample.ID)
-		response[i] = dto.ToSampleResponse(&sample, downloadURL)
+		downloadURL, err := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("error get download url: %s for sample id %s", err.Error(), sample.ID.String())})
+		}
+		response[i] = dto.ToSampleDTO(&sample, downloadURL)
 	}
 
 	c.JSON(http.StatusOK, response)
 }
 
 // GetSample godoc
-// @Summary Get music by ID
-// @Description Get audio music by ID
+// @Summary Получение семпла по ID
+// @Description Получение семпла по ID
 // @Tags samples
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Sample ID"
-// @Success 200 {object} dto.SampleResponse
-// @Router /samples/{id} [get]
-func (h *Music) GetSample(c *gin.Context) {
+// @Success 200 {object} dto.SampleDTO
+// @Router /api/v1/samples/{id} [get]
+func (h *Handler) GetSample(c *gin.Context) {
 	id := c.Param("id")
 
 	sample, err := h.sampleService.GetSample(c.Request.Context(), id)
@@ -62,7 +72,7 @@ func (h *Music) GetSample(c *gin.Context) {
 	}
 
 	downloadURL, _ := h.sampleService.GetSampleDownloadURL(c.Request.Context(), id)
-	response := dto.ToSampleResponse(sample, downloadURL)
+	response := dto.ToSampleDTO(sample, downloadURL)
 
 	c.JSON(http.StatusOK, response)
 }
@@ -83,9 +93,9 @@ func (h *Music) GetSample(c *gin.Context) {
 // @Param duration formData number true "Duration in seconds"
 // @Param pack_id formData string false "Pack ID"
 // @Param file formData file true "Audio file"
-// @Success 201 {object} dto.SampleResponse
+// @Success 201 {object} dto.SampleDTO
 // @Router /samples [post]
-func (h *Music) CreateSample(c *gin.Context) {
+func (h *Handler) CreateSample(c *gin.Context) {
 	title := c.PostForm("title")
 	author := c.PostForm("author")
 	description := c.PostForm("description")
@@ -144,7 +154,7 @@ func (h *Music) CreateSample(c *gin.Context) {
 	}
 
 	downloadURL, _ := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample.ID)
-	response := dto.ToSampleResponse(sample, downloadURL)
+	response := dto.ToSampleDTO(sample, downloadURL)
 
 	c.JSON(http.StatusCreated, response)
 }
@@ -158,9 +168,9 @@ func (h *Music) CreateSample(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path string true "Sample ID"
 // @Param request body dto.UpdateSampleRequest true "Update data"
-// @Success 200 {object} dto.SampleResponse
+// @Success 200 {object} dto.SampleDTO
 // @Router /samples/{id} [put]
-func (h *Music) UpdateSample(c *gin.Context) {
+func (h *Handler) UpdateSample(c *gin.Context) {
 	id := c.Param("id")
 
 	var req dto.UpdateSampleRequest
@@ -176,7 +186,7 @@ func (h *Music) UpdateSample(c *gin.Context) {
 	}
 
 	downloadURL, _ := h.sampleService.GetSampleDownloadURL(c.Request.Context(), id)
-	response := dto.ToSampleResponse(sample, downloadURL)
+	response := dto.ToSampleDTO(sample, downloadURL)
 
 	c.JSON(http.StatusOK, response)
 }
@@ -189,7 +199,7 @@ func (h *Music) UpdateSample(c *gin.Context) {
 // @Param id path string true "Sample ID"
 // @Success 204
 // @Router /samples/{id} [delete]
-func (h *Music) DeleteSample(c *gin.Context) {
+func (h *Handler) DeleteSample(c *gin.Context) {
 	id := c.Param("id")
 
 	err := h.sampleService.DeleteSample(c.Request.Context(), id)
@@ -208,19 +218,19 @@ func (h *Music) DeleteSample(c *gin.Context) {
 // @Tags packs
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {array} dto.PackResponse
+// @Success 200 {array} dto.PackDTO
 // @Router /packs [get]
-func (h *Music) GetPacks(c *gin.Context) {
+func (h *Handler) GetPacks(c *gin.Context) {
 	packs, err := h.sampleService.GetAllPacks(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	response := make([]dto.PackResponse, len(packs))
+	response := make([]dto.PackDTO, len(packs))
 	for i, pack := range packs {
 		count, _ := h.sampleService.GetSampleCountByPack(c.Request.Context(), pack.ID)
-		response[i] = dto.ToPackResponse(&pack, count)
+		response[i] = dto.ToPackDTO(&pack, count)
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -235,7 +245,7 @@ func (h *Music) GetPacks(c *gin.Context) {
 // @Param id path string true "Pack ID"
 // @Success 200 {object} dto.PackWithSamplesResponse
 // @Router /packs/{id} [get]
-func (h *Music) GetPack(c *gin.Context) {
+func (h *Handler) GetPack(c *gin.Context) {
 	id := c.Param("id")
 
 	packWithSamples, err := h.sampleService.GetPackWithSamples(c.Request.Context(), id)
@@ -245,13 +255,13 @@ func (h *Music) GetPack(c *gin.Context) {
 	}
 
 	response := dto.PackWithSamplesResponse{
-		PackResponse: dto.ToPackResponse(&packWithSamples.Pack, len(packWithSamples.Samples)),
-		Samples:      make([]dto.SampleResponse, len(packWithSamples.Samples)),
+		PackDTO: dto.ToPackDTO(&packWithSamples.Pack, len(packWithSamples.Samples)),
+		Samples: make([]dto.SampleDTO, len(packWithSamples.Samples)),
 	}
 
 	for i, sample := range packWithSamples.Samples {
 		downloadURL, _ := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample.ID)
-		response.Samples[i] = dto.ToSampleResponse(&sample, downloadURL)
+		response.Samples[i] = dto.ToSampleDTO(&sample, downloadURL)
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -265,9 +275,9 @@ func (h *Music) GetPack(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body dto.CreatePackRequest true "Pack data"
-// @Success 201 {object} dto.PackResponse
+// @Success 201 {object} dto.PackDTO
 // @Router /packs [post]
-func (h *Music) CreatePack(c *gin.Context) {
+func (h *Handler) CreatePack(c *gin.Context) {
 	var req dto.CreatePackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -280,7 +290,7 @@ func (h *Music) CreatePack(c *gin.Context) {
 		return
 	}
 
-	response := dto.ToPackResponse(pack, 0)
+	response := dto.ToPackDTO(pack, 0)
 	c.JSON(http.StatusCreated, response)
 }
 
@@ -293,9 +303,9 @@ func (h *Music) CreatePack(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path string true "Pack ID"
 // @Param request body dto.UpdatePackRequest true "Update data"
-// @Success 200 {object} dto.PackResponse
+// @Success 200 {object} dto.PackDTO
 // @Router /packs/{id} [put]
-func (h *Music) UpdatePack(c *gin.Context) {
+func (h *Handler) UpdatePack(c *gin.Context) {
 	id := c.Param("id")
 
 	var req dto.UpdatePackRequest

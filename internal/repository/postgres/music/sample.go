@@ -2,11 +2,13 @@ package music
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/musicman-backend/internal/domain"
 	"github.com/musicman-backend/internal/domain/entity"
 	"golang.org/x/net/context"
 )
@@ -37,7 +39,16 @@ func (r *Sample) GetByID(ctx context.Context, id uuid.UUID) (entity.Sample, erro
 	FROM samples WHERE id = $1`
 
 	row := r.db.QueryRow(ctx, query, id)
-	return r.scanSample(row)
+	sample, err := r.scanSample(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return sample, domain.ErrNotFound
+	}
+	if err != nil {
+		return sample, fmt.Errorf("failed get pack from db: %w", err)
+	}
+
+	return sample, nil
 }
 
 func (r *Sample) GetAll(ctx context.Context) ([]entity.Sample, error) {
@@ -46,6 +57,9 @@ func (r *Sample) GetAll(ctx context.Context) ([]entity.Sample, error) {
 	FROM samples ORDER BY created_at DESC`
 
 	rows, err := r.db.Query(ctx, query)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error get all samples from DB: %w", err)
 	}
@@ -54,7 +68,7 @@ func (r *Sample) GetAll(ctx context.Context) ([]entity.Sample, error) {
 	for rows.Next() {
 		var sample entity.Sample
 		var genre string
-		var packID sql.NullString
+		var packID sql.Null[uuid.UUID]
 
 		err = rows.Scan(
 			&sample.ID, &sample.Title, &sample.Author, &sample.Description, &genre,
@@ -68,7 +82,7 @@ func (r *Sample) GetAll(ctx context.Context) ([]entity.Sample, error) {
 
 		sample.Genre = entity.Genre(genre)
 		if packID.Valid {
-			sample.PackID = &packID.String
+			sample.PackID = &packID.V
 		}
 
 		samples = append(samples, sample)
@@ -83,6 +97,9 @@ func (r *Sample) GetByPack(ctx context.Context, packID uuid.UUID) ([]entity.Samp
 	FROM samples WHERE pack_id = $1 ORDER BY created_at DESC`
 
 	rows, err := r.db.Query(ctx, query, packID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +108,7 @@ func (r *Sample) GetByPack(ctx context.Context, packID uuid.UUID) ([]entity.Samp
 	for rows.Next() {
 		var sample entity.Sample
 		var genre string
-		var packID sql.NullString
+		var packID sql.Null[uuid.UUID]
 
 		err = rows.Scan(
 			&sample.ID, &sample.Title, &sample.Author, &sample.Description, &genre,
@@ -105,7 +122,7 @@ func (r *Sample) GetByPack(ctx context.Context, packID uuid.UUID) ([]entity.Samp
 
 		sample.Genre = entity.Genre(genre)
 		if packID.Valid {
-			sample.PackID = &packID.String
+			sample.PackID = &packID.V
 		}
 
 		samples = append(samples, sample)
@@ -138,7 +155,7 @@ func (r *Sample) Delete(ctx context.Context, id uuid.UUID) error {
 func (r *Sample) scanSample(row pgx.Row) (entity.Sample, error) {
 	var sample entity.Sample
 	var genre string
-	var packID sql.NullString
+	var packID sql.Null[uuid.UUID]
 
 	err := row.Scan(
 		&sample.ID, &sample.Title, &sample.Author, &sample.Description, &genre,
@@ -148,7 +165,7 @@ func (r *Sample) scanSample(row pgx.Row) (entity.Sample, error) {
 
 	sample.Genre = entity.Genre(genre)
 	if packID.Valid {
-		sample.PackID = &packID.String
+		sample.PackID = &packID.V
 	}
 
 	return sample, err

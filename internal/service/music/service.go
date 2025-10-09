@@ -1,4 +1,4 @@
-package sample
+package music
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/musicman-backend/internal/domain"
 	"github.com/musicman-backend/internal/domain/entity"
+	errors2 "github.com/musicman-backend/internal/errors"
 	"github.com/musicman-backend/internal/http/dto"
-	"github.com/musicman-backend/internal/repository"
-	"github.com/musicman-backend/internal/service"
+	errors3 "github.com/musicman-backend/internal/service/errors"
 )
 
 const BucketName = "samples"
@@ -40,34 +40,36 @@ type FileRepository interface {
 	DeleteFile(ctx context.Context, bucketName, objectName string) error
 }
 
-type Sample struct {
+type Service struct {
 	sampleRepo SampleRepository
 	packRepo   PackRepository
 	fileRepo   FileRepository
 }
 
-func NewSampleService(
+func New(
 	sampleRepo SampleRepository,
 	packRepo PackRepository,
 	fileRepo FileRepository,
-) *Sample {
-	return &Sample{
+) *Service {
+	return &Service{
 		sampleRepo: sampleRepo,
 		packRepo:   packRepo,
 		fileRepo:   fileRepo,
 	}
 }
 
-func (s *Sample) CreateSample(ctx context.Context, req dto.CreateSampleRequest, byte []string, fileSize int64) (entity.Sample, error) {
-	var sample entity.Sample
-
-	if req.PackID != nil {
-		if _, err := s.packRepo.GetByID(ctx, *req.PackID); err != nil {
-			return sample, fmt.Errorf("pack not found while creating music: %w", err)
+func (s *Service) CreateSample(ctx context.Context, sample entity.Sample) (entity.Sample, error) {
+	if sample.PackID != nil {
+		_, err := s.packRepo.GetByID(ctx, *sample.PackID)
+		if errors.Is(err, domain.ErrNotFound) {
+			return sample, err
+		}
+		if err != nil {
+			return sample, fmt.Errorf("error getting pack while creating sample: %w", err)
 		}
 	}
 
-	minioKey := fmt.Sprintf("sample_%d_%s.wav", time.Now().Unix(), req.Title)
+	minioKey := fmt.Sprintf("sample_%d_%s.wav", time.Now().Unix(), sample.Title)
 
 	err := s.fileRepo.UploadFile(ctx, BucketName, minioKey, filePath)
 	if err != nil {
@@ -94,28 +96,35 @@ func (s *Sample) CreateSample(ctx context.Context, req dto.CreateSampleRequest, 
 	return sample, nil
 }
 
-func (s *Sample) GetSample(ctx context.Context, id uuid.UUID) (entity.Sample, error) {
+func (s *Service) GetSampleBy(ctx context.Context, id uuid.UUID) (entity.Sample, error) {
 	sample, err := s.sampleRepo.GetByID(ctx, id)
+	if errors.Is(err, domain.ErrNotFound) {
+		return sample, err
+	}
 	if err != nil {
-		if errors.Is(err, repository.SampleNotFound) {
-			return sample, service.SampleNotFoundError
-		}
-
 		return sample, fmt.Errorf("failed to get sample: %w", err)
 	}
 
 	return sample, nil
 }
 
-func (s *Sample) GetAllSamples(ctx context.Context) ([]entity.Sample, error) {
+func (s *Service) GetSamples(ctx context.Context) ([]entity.Sample, error) {
 	samples, err := s.sampleRepo.GetAll(ctx)
+	if errors.Is(err, domain.ErrNotFound) {
+		return nil, err
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get samples: %w", err)
 	}
+
+	return samples, nil
 }
 
-func (s *Sample) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description *string, genre *entity.Genre) (entity.Sample, error) {
+func (s *Service) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string) (entity.Sample, error) {
 	existing, err := s.sampleRepo.GetByID(ctx, id)
+	if errors.Is(err, domain.ErrNotFound) {
+		return existing, err
+	}
 	if err != nil {
 		return existing, fmt.Errorf("failed to get sample by id: %w", err)
 	}
@@ -146,10 +155,10 @@ func (s *Sample) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UU
 	return existing, nil
 }
 
-func (s *Sample) DeleteSample(ctx context.Context, id uuid.UUID) error {
+func (s *Service) DeleteSample(ctx context.Context, id uuid.UUID) error {
 	sample, err := s.sampleRepo.GetByID(ctx, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete sample by id: %w", err)
 	}
 
 	if err = s.fileRepo.DeleteFile(ctx, BucketName, sample.MinioKey); err != nil {
@@ -161,16 +170,16 @@ func (s *Sample) DeleteSample(ctx context.Context, id uuid.UUID) error {
 	}
 }
 
-func (s *Sample) GetSampleDownloadURL(ctx context.Context, id uuid.UUID) (string, error) {
-	sample, err := s.sampleRepo.GetByID(ctx, id)
+func (s *Service) GetSampleDownloadURL(ctx context.Context, minioKey string) (string, error) {
+	url, err := s.fileRepo.GetFileURL(ctx, BucketName, minioKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to get sample download url: %w", err)
 	}
 
-	return s.fileRepo.GetFileURL(ctx, BucketName, sample.MinioKey)
+	return url, nil
 }
 
-func (s *Sample) CreatePack(ctx context.Context, name, description, author string, genre entity.Genre) (entity.Pack, error) {
+func (s *Service) CreatePack(ctx context.Context, name, description, author string, genre entity.Genre) (entity.Pack, error) {
 	pack := entity.Pack{
 		Name:        req.Name,
 		Description: req.Description,
@@ -186,7 +195,7 @@ func (s *Sample) CreatePack(ctx context.Context, name, description, author strin
 	return pack, nil
 }
 
-func (s *Sample) GetPack(ctx context.Context, id uuid.UUID) (entity.Pack, error) {
+func (s *Service) GetPack(ctx context.Context, id uuid.UUID) (entity.Pack, error) {
 	pack, err := s.packRepo.GetByID(ctx, id)
 	if err != nil {
 		return pack, fmt.Errorf("failed to get all packs: %w", err)
@@ -195,7 +204,7 @@ func (s *Sample) GetPack(ctx context.Context, id uuid.UUID) (entity.Pack, error)
 	return pack, nil
 }
 
-func (s *Sample) GetAllPacks(ctx context.Context) ([]entity.Pack, error) {
+func (s *Service) GetAllPacks(ctx context.Context) ([]entity.Pack, error) {
 	packs, err := s.packRepo.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all packs: %w", err)
@@ -204,7 +213,7 @@ func (s *Sample) GetAllPacks(ctx context.Context) ([]entity.Pack, error) {
 	return packs, nil
 }
 
-func (s *Sample) UpdatePack(ctx context.Context, id uuid.UUID, name, description string, genre entity.Genre) error {
+func (s *Service) UpdatePack(ctx context.Context, id uuid.UUID, name, description string, genre entity.Genre) error {
 	pack, err := s.packRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed get pack by id to update it: %w", err)
@@ -228,11 +237,11 @@ func (s *Sample) UpdatePack(ctx context.Context, id uuid.UUID, name, description
 	return nil
 }
 
-func (s *Sample) DeletePack(ctx context.Context, id uuid.UUID) error {
+func (s *Service) DeletePack(ctx context.Context, id uuid.UUID) error {
 	return s.packRepo.Delete(ctx, id)
 }
 
-func (s *Sample) GetPackWithSamples(ctx context.Context, id uuid.UUID) (entity.Pack, []entity.Sample, error) {
+func (s *Service) GetPackWithSamples(ctx context.Context, id uuid.UUID) (entity.Pack, []entity.Sample, error) {
 	var pack entity.Pack
 	var samples []entity.Sample
 

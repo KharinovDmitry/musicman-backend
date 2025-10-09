@@ -2,11 +2,14 @@ package music
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
+	"github.com/musicman-backend/internal/domain"
 	"github.com/musicman-backend/internal/domain/entity"
 )
 
@@ -42,7 +45,14 @@ func (r *Pack) GetByID(ctx context.Context, id uuid.UUID) (entity.Pack, error) {
 		&pack.CreatedAt, &pack.UpdatedAt,
 	)
 
-	return pack, fmt.Errorf("failed get pack from db: %w", err)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return pack, domain.ErrNotFound
+	}
+	if err != nil {
+		return pack, fmt.Errorf("failed get pack from db: %w", err)
+	}
+
+	return pack, nil
 }
 
 func (r *Pack) GetAll(ctx context.Context) ([]entity.Pack, error) {
@@ -52,6 +62,10 @@ func (r *Pack) GetAll(ctx context.Context) ([]entity.Pack, error) {
 
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed get all packs from db: %w", err)
 	}
 
@@ -64,7 +78,7 @@ func (r *Pack) GetAll(ctx context.Context) ([]entity.Pack, error) {
 		)
 
 		if err != nil {
-			return nil, fmt.Errorf("failed get all packs from db: %w", err)
+			return nil, fmt.Errorf("failed get map packs from db: %w", err)
 		}
 		packs = append(packs, pack)
 	}

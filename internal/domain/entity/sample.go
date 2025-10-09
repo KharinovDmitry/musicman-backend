@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Genre string
+type Genre = string
 
 // Sample - доменная модель сэмпла
 type Sample struct {
@@ -18,7 +18,7 @@ type Sample struct {
 	Duration    float64
 	Size        int64
 	MinioKey    string
-	PackID      *uuid.UUID //   ну типа нуллабл :)
+	PackID      *uuid.UUID // ну типа нуллабл :)
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

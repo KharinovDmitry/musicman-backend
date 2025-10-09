@@ -43,6 +43,7 @@ func (m *Minio) UploadFile(ctx context.Context, bucketName string, objectName st
 
 func (m *Minio) DownloadFile(ctx context.Context, bucketName string, objectName string, filePath string) error {
 	err := m.client.FGetObject(ctx, bucketName, objectName, filePath, minio.GetObjectOptions{})
+
 	if err != nil {
 		return fmt.Errorf("failed to download file: %w", err)
 	}
