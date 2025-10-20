@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Postgres Postgres   `yaml:"postgres"`
-	Http     HttpConfig `yaml:"http"`
+	Postgres Postgres    `yaml:"postgres"`
+	Http     HttpConfig  `yaml:"http"`
+	Minio    MinioConfig `yaml:"minio"`
 	YooKassa YooKassa   `yaml:"yookassa"`
 }
 

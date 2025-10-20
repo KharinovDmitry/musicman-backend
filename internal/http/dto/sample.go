@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/musicman-backend/internal/domain/entity"
+	entity "github.com/musicman-backend/internal/domain/entity"
 )
 
 type CreateSampleRequest struct {
@@ -22,11 +22,12 @@ type CreateSampleFileRequest struct {
 }
 
 type UpdateSampleRequest struct {
-	Title       *string `json:"title"`
-	Author      *string `json:"author"`
-	Description *string `json:"description"`
-	Genre       *string `json:"genre"`
-	PackID      *string `json:"pack_id"`
+	ID          uuid.UUID  `json:"id" binding:"required"`
+	Title       *string    `json:"title"`
+	Author      *string    `json:"author"`
+	Description *string    `json:"description"`
+	Genre       *string    `json:"genre"`
+	PackID      *uuid.UUID `json:"pack_id"`
 }
 
 type CreatePackRequest struct {
@@ -44,17 +45,17 @@ type UpdatePackRequest struct {
 }
 
 type SampleDTO struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Author      string    `json:"author"`
-	Description string    `json:"description"`
-	Genre       string    `json:"genre"`
-	Duration    float64   `json:"duration"`
-	Size        int64     `json:"size"`
-	PackID      *string   `json:"pack_id,omitempty"`
-	DownloadURL string    `json:"download_url,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          uuid.UUID  `json:"id"`
+	Title       string     `json:"title"`
+	Author      string     `json:"author"`
+	Description string     `json:"description"`
+	Genre       string     `json:"genre"`
+	Duration    float64    `json:"duration"`
+	Size        int64      `json:"size"`
+	PackID      *uuid.UUID `json:"pack_id,omitempty"`
+	DownloadURL string     `json:"download_url,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type PackDTO struct {
@@ -72,24 +73,37 @@ type PackWithSamplesResponse struct {
 	Samples []SampleDTO `json:"samples"`
 }
 
-func ToSampleDTO(sample *entity.Sample, downloadURL string) SampleDTO {
-	id := sample.PackID.String()
+func ToSampleDTO(sample entity.Sample, downloadURL string) SampleDTO {
 	return SampleDTO{
-		ID:          sample.ID.String(),
+		ID:          sample.ID,
 		Title:       sample.Title,
 		Author:      sample.Author,
 		Description: sample.Description,
 		Genre:       sample.Genre,
 		Duration:    sample.Duration,
 		Size:        sample.Size,
-		PackID:      &id,
+		PackID:      sample.PackID,
 		DownloadURL: downloadURL,
 		CreatedAt:   sample.CreatedAt,
 		UpdatedAt:   sample.UpdatedAt,
 	}
 }
+func (s *SampleDTO) ToEntity() entity.Sample {
+	return entity.Sample{
+		ID:          s.ID,
+		Title:       s.Title,
+		Author:      s.Author,
+		Description: s.Description,
+		Genre:       s.Genre,
+		Duration:    s.Duration,
+		Size:        s.Size,
+		PackID:      s.PackID,
+		CreatedAt:   s.CreatedAt,
+		UpdatedAt:   s.UpdatedAt,
+	}
+}
 
-func ToPackDTO(pack *entity.Pack) PackDTO {
+func ToPackDTO(pack entity.Pack) PackDTO {
 	return PackDTO{
 		ID:          pack.ID.String(),
 		Name:        pack.Name,

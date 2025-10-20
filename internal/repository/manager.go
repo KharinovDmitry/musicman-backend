@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/musicman-backend/cmd/migrator"
+	"github.com/musicman-backend/internal/repository/minio"
 	"github.com/musicman-backend/internal/repository/postgres/music"
 	"github.com/musicman-backend/internal/repository/postgres/payments"
 	"github.com/musicman-backend/internal/repository/postgres/users"
@@ -19,6 +20,7 @@ type Manager struct {
 	UserRepository   *users.Repository
 	PackRepository   *music.Pack
 	SampleRepository *music.Sample
+	FileRepository   *minio.Minio
 	PaymentRepository *payments.Repository
 
 	pg *pgxpool.Pool
@@ -38,10 +40,16 @@ func Init(ctx context.Context, cfg *config.Config) (*Manager, error) {
 		return nil, fmt.Errorf("failed to apply migrations: %w", err)
 	}
 
+	minioClient, err := minio.InitMinioClient(cfg.Minio)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init minio client: %w", err)
+	}
+
 	manager.UserRepository = users.NewRepository(manager.pg)
 	manager.PackRepository = music.NewPack(manager.pg)
 	manager.SampleRepository = music.NewSample(manager.pg)
 	manager.PaymentRepository = payments.New(manager.pg)
+	manager.FileRepository = minio.NewMinio(minioClient)
 
 	return &manager, nil
 }

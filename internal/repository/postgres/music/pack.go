@@ -27,7 +27,7 @@ func (r *Pack) Create(ctx context.Context, pack entity.Pack) error {
 	VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 	_, err := r.db.Exec(ctx, query,
-		pack.ID, pack.Name, pack.Description, string(pack.Genre), pack.Author,
+		pack.ID, pack.Name, pack.Description, pack.Genre, pack.Author,
 		pack.CreatedAt, pack.UpdatedAt)
 
 	return err

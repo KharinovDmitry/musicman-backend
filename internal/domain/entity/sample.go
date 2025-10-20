@@ -33,3 +33,8 @@ type Pack struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
+
+type PackWithSamples struct {
+	Pack
+	Samples []Sample
+}

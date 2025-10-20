@@ -9,9 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/musicman-backend/internal/domain"
 	"github.com/musicman-backend/internal/domain/entity"
-	errors2 "github.com/musicman-backend/internal/errors"
-	"github.com/musicman-backend/internal/http/dto"
-	errors3 "github.com/musicman-backend/internal/service/errors"
 )
 
 const BucketName = "samples"
@@ -58,7 +55,7 @@ func New(
 	}
 }
 
-func (s *Service) CreateSample(ctx context.Context, sample entity.Sample) (entity.Sample, error) {
+func (s *Service) CreateSample(ctx context.Context, sample entity.Sample, audioFilePath string) (entity.Sample, error) {
 	if sample.PackID != nil {
 		_, err := s.packRepo.GetByID(ctx, *sample.PackID)
 		if errors.Is(err, domain.ErrNotFound) {
@@ -71,32 +68,25 @@ func (s *Service) CreateSample(ctx context.Context, sample entity.Sample) (entit
 
 	minioKey := fmt.Sprintf("sample_%d_%s.wav", time.Now().Unix(), sample.Title)
 
-	err := s.fileRepo.UploadFile(ctx, BucketName, minioKey, filePath)
+	err := s.fileRepo.UploadFile(ctx, BucketName, minioKey, audioFilePath)
 	if err != nil {
 		return sample, fmt.Errorf("failed to upload sample file: %w", err)
 	}
 
-	sample = entity.Sample{
-		Title:       req.Title,
-		Author:      req.Author,
-		Description: req.Description,
-		Genre:       req.Genre,
-		Duration:    req.Duration,
-		Size:        fileSize,
-		MinioKey:    minioKey,
-		PackID:      req.PackID,
-	}
+	sample.MinioKey = minioKey
 
-	err = s.sampleRepo.Create(ctx, sample)
-	if err != nil {
-		s.fileRepo.DeleteFile(ctx, BucketName, minioKey)
+	if err = s.sampleRepo.Create(ctx, sample); err != nil {
+		if err := s.fileRepo.DeleteFile(ctx, BucketName, minioKey); err != nil {
+			return sample, fmt.Errorf("failed to delete sample file due to error in Create sample: %w", err)
+		}
+
 		return sample, fmt.Errorf("failed to create sample: %w", err)
 	}
 
 	return sample, nil
 }
 
-func (s *Service) GetSampleBy(ctx context.Context, id uuid.UUID) (entity.Sample, error) {
+func (s *Service) GetSampleByID(ctx context.Context, id uuid.UUID) (entity.Sample, error) {
 	sample, err := s.sampleRepo.GetByID(ctx, id)
 	if errors.Is(err, domain.ErrNotFound) {
 		return sample, err
@@ -168,6 +158,8 @@ func (s *Service) DeleteSample(ctx context.Context, id uuid.UUID) error {
 	if err = s.sampleRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete sample: %w", err)
 	}
+
+	return nil
 }
 
 func (s *Service) GetSampleDownloadURL(ctx context.Context, minioKey string) (string, error) {
@@ -179,54 +171,32 @@ func (s *Service) GetSampleDownloadURL(ctx context.Context, minioKey string) (st
 	return url, nil
 }
 
-func (s *Service) CreatePack(ctx context.Context, name, description, author string, genre entity.Genre) (entity.Pack, error) {
-	pack := entity.Pack{
-		Name:        req.Name,
-		Description: req.Description,
-		Genre:       req.Genre,
-		Author:      req.Author,
-	}
-
-	err := s.packRepo.Create(ctx, pack)
-	if err != nil {
-		return nil, err
-	}
-
-	return pack, nil
+func (s *Service) CreatePack(ctx context.Context, pack entity.Pack) error {
+	return s.packRepo.Create(ctx, pack)
 }
 
 func (s *Service) GetPack(ctx context.Context, id uuid.UUID) (entity.Pack, error) {
-	pack, err := s.packRepo.GetByID(ctx, id)
-	if err != nil {
-		return pack, fmt.Errorf("failed to get all packs: %w", err)
-	}
-
-	return pack, nil
+	return s.packRepo.GetByID(ctx, id)
 }
 
 func (s *Service) GetAllPacks(ctx context.Context) ([]entity.Pack, error) {
-	packs, err := s.packRepo.GetAll(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all packs: %w", err)
-	}
-
-	return packs, nil
+	return s.packRepo.GetAll(ctx)
 }
 
-func (s *Service) UpdatePack(ctx context.Context, id uuid.UUID, name, description string, genre entity.Genre) error {
+func (s *Service) UpdatePack(ctx context.Context, id uuid.UUID, name, description, genre *string) error {
 	pack, err := s.packRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed get pack by id to update it: %w", err)
 	}
 
-	if name == "" {
-		pack.Name = name
+	if name != nil {
+		pack.Name = *name
 	}
-	if description == "" {
-		pack.Description = description
+	if description != nil {
+		pack.Description = *description
 	}
-	if genre == "" {
-		pack.Genre = genre
+	if genre != nil {
+		pack.Genre = *genre
 	}
 
 	err = s.packRepo.Update(ctx, pack)
