@@ -86,7 +86,7 @@ func (s *Service) CreateSample(ctx context.Context, sample entity.Sample, audioF
 	return sample, nil
 }
 
-func (s *Service) GetSampleByID(ctx context.Context, id uuid.UUID) (entity.Sample, error) {
+func (s *Service) GetSample(ctx context.Context, id uuid.UUID) (entity.Sample, error) {
 	sample, err := s.sampleRepo.GetByID(ctx, id)
 	if errors.Is(err, domain.ErrNotFound) {
 		return sample, err

@@ -1,6 +1,7 @@
 package music
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,17 +10,31 @@ import (
 	"github.com/google/uuid"
 	"github.com/musicman-backend/internal/domain"
 	"github.com/musicman-backend/internal/domain/entity"
-	api "github.com/musicman-backend/internal/http"
 	"github.com/musicman-backend/internal/http/dto"
 )
 
-type Handler struct {
-	sampleService api.MusicService
+type Service interface {
+	GetSamples(ctx context.Context) ([]entity.Sample, error)
+	GetSampleDownloadURL(ctx context.Context, minioKey string) (string, error)
+	GetSample(ctx context.Context, sampleID uuid.UUID) (entity.Sample, error)
+	CreateSample(ctx context.Context, sample entity.Sample, audioFilePath string) (entity.Sample, error)
+	UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string) (entity.Sample, error)
+	DeleteSample(ctx context.Context, id uuid.UUID) error
+
+	GetAllPacks(ctx context.Context) ([]entity.Pack, error)
+	GetPack(ctx context.Context, id uuid.UUID) (entity.Pack, error)
+	CreatePack(ctx context.Context, pack entity.Pack) error
+	UpdatePack(ctx context.Context, id uuid.UUID, name, description, genre *string) error
+	DeletePack(ctx context.Context, id uuid.UUID) error
 }
 
-func New(sampleService api.MusicService) *Handler {
+type Handler struct {
+	service Service
+}
+
+func New(service Service) *Handler {
 	return &Handler{
-		sampleService: sampleService,
+		service: service,
 	}
 }
 
@@ -32,7 +47,7 @@ func New(sampleService api.MusicService) *Handler {
 // @Success 200 {array} dto.SampleDTO
 // @Router /api/v1/samples [get]
 func (h *Handler) GetSamples(c *gin.Context) {
-	samples, err := h.sampleService.GetSamples(c.Request.Context())
+	samples, err := h.service.GetSamples(c.Request.Context())
 	if errors.Is(err, domain.ErrNotFound) {
 		c.Status(http.StatusNotFound)
 		return
@@ -44,7 +59,7 @@ func (h *Handler) GetSamples(c *gin.Context) {
 
 	response := make([]dto.SampleDTO, len(samples))
 	for i, sample := range samples {
-		downloadURL, err := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample)
+		downloadURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("error get download url: %s for sample id %s", err.Error(), sample.ID.String())})
 			return
@@ -72,13 +87,13 @@ func (h *Handler) GetSample(c *gin.Context) {
 		return
 	}
 
-	sample, err := h.sampleService.GetSample(c.Request.Context(), id)
+	sample, err := h.service.GetSample(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"message": "Sample not found"})
 		return
 	}
 
-	downloadURL, err := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample)
+	downloadURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -96,13 +111,13 @@ func (h *Handler) GetSample(c *gin.Context) {
 // @Accept multipart/form-data
 // @Produce json
 // @Security BearerAuth
-// @Param dto.SampleDTO object
+// @Body input body  dto.SampleDTO
 // @Param file formData file true "Audio file (sample)"
 // @Success 201 {object} dto.SampleDTO
 // @Router /samples [post]
 func (h *Handler) CreateSample(c *gin.Context) {
 	sampleDto := dto.SampleDTO{}
-	if err := c.ShouldBindJSON(&sampleDto); err != nil {
+	if err := c.BindJSON(&sampleDto); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
@@ -124,13 +139,18 @@ func (h *Handler) CreateSample(c *gin.Context) {
 		return
 	}
 
-	sample, err := h.sampleService.CreateSample(c.Request.Context(), sampleDto.ToEntity(), filePath)
+	sample, err := h.service.CreateSample(c.Request.Context(), sampleDto.ToEntity(), filePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
-	downloadURL, _ := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample)
+	downloadURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
 	response := dto.ToSampleDTO(sample, downloadURL)
 
 	c.JSON(http.StatusCreated, response)
@@ -153,13 +173,13 @@ func (h *Handler) UpdateSample(c *gin.Context) {
 		return
 	}
 
-	sample, err := h.sampleService.UpdateSample(c.Request.Context(), req.ID, req.PackID, req.Title, req.Author, req.Description, req.Genre)
+	sample, err := h.service.UpdateSample(c.Request.Context(), req.ID, req.PackID, req.Title, req.Author, req.Description, req.Genre)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
-	downloadURL, err := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample)
+	downloadURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
@@ -183,7 +203,7 @@ func (h *Handler) DeleteSample(c *gin.Context) {
 		return
 	}
 
-	if err := h.sampleService.DeleteSample(c.Request.Context(), id); err != nil {
+	if err := h.service.DeleteSample(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
@@ -200,7 +220,7 @@ func (h *Handler) DeleteSample(c *gin.Context) {
 // @Success 200 {array} dto.PackDTO
 // @Router /packs [get]
 func (h *Handler) GetPacks(c *gin.Context) {
-	packs, err := h.sampleService.GetAllPacks(c.Request.Context())
+	packs, err := h.service.GetAllPacks(c.Request.Context())
 	if errors.Is(err, domain.ErrNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
 		return
@@ -234,7 +254,7 @@ func (h *Handler) GetPack(c *gin.Context) {
 		return
 	}
 
-	pack, err := h.sampleService.GetPack(c.Request.Context(), id)
+	pack, err := h.service.GetPack(c.Request.Context(), id)
 	if errors.Is(err, domain.ErrNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
 		return
@@ -244,7 +264,7 @@ func (h *Handler) GetPack(c *gin.Context) {
 		return
 	}
 
-	samples, err := h.sampleService.GetSamples(c.Request.Context())
+	samples, err := h.service.GetSamples(c.Request.Context())
 	if errors.Is(err, domain.ErrNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
 		return
@@ -259,7 +279,7 @@ func (h *Handler) GetPack(c *gin.Context) {
 		if sample.PackID == nil {
 			continue
 		}
-		url, err := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample)
+		url, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 			return
@@ -294,7 +314,7 @@ func (h *Handler) CreatePack(c *gin.Context) {
 		return
 	}
 
-	err := h.sampleService.CreatePack(c.Request.Context(), entity.Pack{
+	err := h.service.CreatePack(c.Request.Context(), entity.Pack{
 		Name:        req.Name,
 		Description: req.Description,
 		Genre:       req.Genre,
@@ -331,7 +351,7 @@ func (h *Handler) UpdatePack(c *gin.Context) {
 		return
 	}
 
-	if err := h.sampleService.UpdatePack(c.Request.Context(), id, req.Name, req.Description, req.Genre); err != nil {
+	if err := h.service.UpdatePack(c.Request.Context(), id, req.Name, req.Description, req.Genre); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
@@ -342,7 +362,7 @@ func (h *Handler) UpdatePack(c *gin.Context) {
 // DeletePack godoc
 // @Summary Delete pack
 // @Description Delete audio music
-// @Tags samples
+// @Tags packs
 // @Security BearerAuth
 // @Param id path string true "Pack ID"
 // @Success 204
@@ -354,7 +374,7 @@ func (h *Handler) DeletePack(c *gin.Context) {
 		return
 	}
 
-	if err := h.sampleService.DeletePack(c.Request.Context(), id); err != nil {
+	if err := h.service.DeletePack(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}

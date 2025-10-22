@@ -12,7 +12,7 @@ minio:
   access_key: "minioadmin"
   secret_key: "minioadmin"
   use_ssl: false
-  bucket_name: "samples"
+  bucket_name: "musicman"
   max_retries: 5
 
 http:
