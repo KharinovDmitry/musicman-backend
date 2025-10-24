@@ -52,11 +52,12 @@ func SetupRouter(container *di.Container) *gin.Engine {
 		Use(authMiddleware).
 		GET("", musicHandler.GetSamples).
 		GET("/:id", musicHandler.GetSample).
-		PUT("", musicHandler.UpdateSample).
+		PUT("/:id", musicHandler.UpdateSample).
+		POST("/:id", musicHandler.UploadAudio).
 		DELETE("/:id", musicHandler.DeleteSample).
 		POST("", musicHandler.CreateSample)
 
-	apiV1.Group("/pack").
+	apiV1.Group("/packs").
 		Use(authMiddleware).
 		GET("", musicHandler.GetPacks).
 		GET("/:id", musicHandler.GetPack).

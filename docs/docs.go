@@ -15,68 +15,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/samples": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Получение всех семплов с информацией о них",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "samples"
-                ],
-                "summary": "Получение всех семплов (без файлов)",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/dto.SampleDTO"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/samples/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Получение семпла по ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "samples"
-                ],
-                "summary": "Получение семпла по ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Sample ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dto.SampleDTO"
-                        }
-                    }
-                }
-            }
-        },
         "/auth/sign-in": {
             "post": {
                 "description": "Выполняет вход пользователя в систему и возвращает JWT токен",
@@ -188,14 +126,13 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get all music packs",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "packs"
                 ],
-                "summary": "Get all packs",
+                "summary": "Получение всех паков (без семплов)",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -204,6 +141,18 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/dto.PackDTO"
                             }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
                         }
                     }
                 }
@@ -214,7 +163,6 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new music pack",
                 "consumes": [
                     "application/json"
                 ],
@@ -224,7 +172,7 @@ const docTemplate = `{
                 "tags": [
                     "packs"
                 ],
-                "summary": "Create a new pack",
+                "summary": "Создает пак семплов (без семплов)",
                 "parameters": [
                     {
                         "description": "Pack data",
@@ -242,6 +190,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dto.PackDTO"
                         }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
                     }
                 }
             }
@@ -253,14 +213,13 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get music pack by ID with samples",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "packs"
                 ],
-                "summary": "Get pack by ID",
+                "summary": "Получает пак вместе с семплами (но без аудио содержимого)",
                 "parameters": [
                     {
                         "type": "string",
@@ -276,6 +235,24 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dto.PackWithSamplesResponse"
                         }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
                     }
                 }
             },
@@ -285,7 +262,6 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update music pack",
                 "consumes": [
                     "application/json"
                 ],
@@ -295,7 +271,7 @@ const docTemplate = `{
                 "tags": [
                     "packs"
                 ],
-                "summary": "Update pack",
+                "summary": "Обновляет пак",
                 "parameters": [
                     {
                         "type": "string",
@@ -315,10 +291,19 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/dto.PackDTO"
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
                         }
                     }
                 }
@@ -329,11 +314,10 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete audio music",
                 "tags": [
                     "packs"
                 ],
-                "summary": "Delete pack",
+                "summary": "Удаляет пак",
                 "parameters": [
                     {
                         "type": "string",
@@ -346,6 +330,12 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
                     }
                 }
             }
@@ -382,13 +372,49 @@ const docTemplate = `{
             }
         },
         "/samples": {
-            "put": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update audio music",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "samples"
+                ],
+                "summary": "Получение всех семплов, но без файлов",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.SampleDTO"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -398,7 +424,95 @@ const docTemplate = `{
                 "tags": [
                     "samples"
                 ],
-                "summary": "Update music",
+                "summary": "Создает новый семпл (аудио загружается для созданного семпла через UploadAudio эндпоинт по ID семпла)",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UUIDResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/samples/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "samples"
+                ],
+                "summary": "Получение семпла по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sample ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SampleDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "samples"
+                ],
+                "summary": "Обновляет семпл",
                 "parameters": [
                     {
                         "description": "Update data",
@@ -416,6 +530,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dto.SampleDTO"
                         }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
                     }
                 }
             },
@@ -425,7 +551,6 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new sample",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -435,11 +560,11 @@ const docTemplate = `{
                 "tags": [
                     "samples"
                 ],
-                "summary": "Create a new sample",
+                "summary": "Загрузка .wav аудио файла для созданного семпла",
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "Audio file (sample)",
+                        "description": "Аудио файл (sample)",
                         "name": "file",
                         "in": "formData",
                         "required": true
@@ -449,24 +574,39 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dto.SampleDTO"
+                            "$ref": "#/definitions/dto.DownloadURLResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
                         }
                     }
                 }
-            }
-        },
-        "/samples/{id}": {
+            },
             "delete": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete audio music",
                 "tags": [
                     "samples"
                 ],
-                "summary": "Delete music",
+                "summary": "Удаляет семпл",
                 "parameters": [
                     {
                         "type": "string",
@@ -477,8 +617,26 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SampleDTO"
+                        }
+                    },
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
                     }
                 }
             }
@@ -497,6 +655,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "author",
+                "description",
                 "genre",
                 "name"
             ],
@@ -511,6 +670,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DownloadURLResponse": {
+            "type": "object",
+            "properties": {
+                "download_url": {
                     "type": "string"
                 }
             }
@@ -631,6 +798,14 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.UUIDResponse": {
+            "type": "object",
+            "properties": {
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.UpdatePackRequest": {
             "type": "object",
             "properties": {
@@ -650,9 +825,6 @@ const docTemplate = `{
         },
         "dto.UpdateSampleRequest": {
             "type": "object",
-            "required": [
-                "id"
-            ],
             "properties": {
                 "author": {
                     "type": "string"
@@ -661,9 +833,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "genre": {
-                    "type": "string"
-                },
-                "id": {
                     "type": "string"
                 },
                 "pack_id": {

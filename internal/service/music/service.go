@@ -14,7 +14,7 @@ import (
 const BucketName = "samples"
 
 type SampleRepository interface {
-	Create(ctx context.Context, sample entity.Sample) error
+	Create(ctx context.Context, sample entity.Sample) (uuid.UUID, error)
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Sample, error)
 	GetAll(ctx context.Context) ([]entity.Sample, error)
 	GetByPack(ctx context.Context, packID uuid.UUID) ([]entity.Sample, error)
@@ -55,35 +55,51 @@ func New(
 	}
 }
 
-func (s *Service) CreateSample(ctx context.Context, sample entity.Sample, audioFilePath string) (entity.Sample, error) {
-	if sample.PackID != nil {
-		_, err := s.packRepo.GetByID(ctx, *sample.PackID)
+func (s *Service) CreateSample(ctx context.Context, author, title, description, genre string, packID *uuid.UUID) (uuid.UUID, error) {
+	var sampleID uuid.UUID
+	if packID != nil {
+		_, err := s.packRepo.GetByID(ctx, *packID)
 		if errors.Is(err, domain.ErrNotFound) {
-			return sample, err
+			return sampleID, err
 		}
 		if err != nil {
-			return sample, fmt.Errorf("error getting pack while creating sample: %w", err)
+			return sampleID, fmt.Errorf("error getting pack while creating sample: %w", err)
 		}
 	}
 
-	minioKey := fmt.Sprintf("sample_%d_%s.wav", time.Now().Unix(), sample.Title)
+	sample := entity.Sample{
+		Title:       title,
+		Author:      author,
+		Description: description,
+		Genre:       genre,
+		MinioKey:    fmt.Sprintf("sample_%d_%s.wav", time.Now().Unix(), title),
+		PackID:      packID,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
 
-	err := s.fileRepo.UploadFile(ctx, BucketName, minioKey, audioFilePath)
+	sampleID, err := s.sampleRepo.Create(ctx, sample)
 	if err != nil {
-		return sample, fmt.Errorf("failed to upload sample file: %w", err)
+		return sampleID, fmt.Errorf("failed to create sample: %w", err)
 	}
 
-	sample.MinioKey = minioKey
+	return sampleID, nil
+}
 
-	if err = s.sampleRepo.Create(ctx, sample); err != nil {
-		if err := s.fileRepo.DeleteFile(ctx, BucketName, minioKey); err != nil {
-			return sample, fmt.Errorf("failed to delete sample file due to error in Create sample: %w", err)
-		}
-
-		return sample, fmt.Errorf("failed to create sample: %w", err)
+func (s *Service) UploadAudio(ctx context.Context, audioFilePath string, sampleID uuid.UUID) error {
+	sample, err := s.sampleRepo.GetByID(ctx, sampleID)
+	if errors.Is(err, domain.ErrNotFound) {
+		return err
+	}
+	if err != nil {
+		return fmt.Errorf("failed to get sample: %w", err)
 	}
 
-	return sample, nil
+	if err := s.fileRepo.UploadFile(ctx, BucketName, sample.MinioKey, audioFilePath); err != nil {
+		return fmt.Errorf("failed to upload file: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) GetSample(ctx context.Context, id uuid.UUID) (entity.Sample, error) {

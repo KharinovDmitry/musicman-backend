@@ -25,7 +25,8 @@ func AuthMiddleware(verifier TokenVerifier) gin.HandlerFunc {
 				slog.String("err", err.Error()),
 				slog.String("header", ctx.Request.Header.Get("Authorization")),
 			)
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.NewApiError("некорекктный заголовок авторизации"))
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.NewApiError("некорректный заголовок авторизации"))
+			return
 		}
 
 		claims, err := verifier.VerifyToken(ctx, token)
@@ -34,7 +35,7 @@ func AuthMiddleware(verifier TokenVerifier) gin.HandlerFunc {
 				slog.String("token", token),
 				slog.String("err", err.Error()),
 			)
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.NewApiError("некорекктный токен авторизации"))
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, dto.NewApiError("некорректный токен авторизации"))
 			return
 		}
 

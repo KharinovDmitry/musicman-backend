@@ -21,16 +21,22 @@ func NewSample(db *pgxpool.Pool) *Sample {
 	return &Sample{db: db}
 }
 
-func (r *Sample) Create(ctx context.Context, sample entity.Sample) error {
+func (r *Sample) Create(ctx context.Context, sample entity.Sample) (uuid.UUID, error) {
 	query := `
-	INSERT INTO samples (title, author, description, genre, duration, size, minio_key, pack_id, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $8, $9, $10, $11, $12, $13)`
+		INSERT INTO samples (title, author, description, genre, duration, size, minio_key, pack_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $8, $9, $10)
+		RETURNING id`
 
-	_, err := r.db.Exec(ctx, query,
-		sample.Title, sample.Author, sample.Description, string(sample.Genre), sample.Duration, sample.Size, sample.MinioKey,
+	var id uuid.UUID
+
+	row := r.db.QueryRow(ctx, query,
+		sample.Title, sample.Author, sample.Description, sample.Genre, sample.Duration, sample.Size, sample.MinioKey,
 		sample.PackID, sample.CreatedAt, sample.UpdatedAt)
+	if err := row.Scan(id); err != nil {
+		return id, fmt.Errorf("failed to create in db")
+	}
 
-	return fmt.Errorf("failed to create sample in DB: %w", err)
+	return id, nil
 }
 
 func (r *Sample) GetByID(ctx context.Context, id uuid.UUID) (entity.Sample, error) {

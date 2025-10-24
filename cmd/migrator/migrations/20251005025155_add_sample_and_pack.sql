@@ -2,7 +2,7 @@
 -- +goose StatementBegin
 SELECT 'up SQL query';
 CREATE TABLE IF NOT EXISTS packs (
-    id VARCHAR(36) PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
     genre VARCHAR(50) NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS packs (
 );
 
 CREATE TABLE IF NOT EXISTS samples (
-    id VARCHAR(36) PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
     author VARCHAR(255) NOT NULL,
     description TEXT,
@@ -20,10 +20,10 @@ CREATE TABLE IF NOT EXISTS samples (
     duration FLOAT NOT NULL,
     size BIGINT NOT NULL,
     minio_key VARCHAR(500) NOT NULL,
-    pack_id VARCHAR(36),
+    pack_id UUID,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
-    FOREIGN KEY (pack_id) REFERENCES packs(id) ON DELETE SET NULL
+    FOREIGN KEY (pack_id) REFERENCES packs(id) ON DELETE CASCADE
 );
 
 -- +goose StatementEnd
