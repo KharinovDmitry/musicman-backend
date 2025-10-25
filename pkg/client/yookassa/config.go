@@ -1,4 +1,4 @@
-package youkassa
+package yookassa
 
 import "net/url"
 

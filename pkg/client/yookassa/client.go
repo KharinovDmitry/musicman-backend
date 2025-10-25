@@ -1,4 +1,4 @@
-package youkassa
+package yookassa
 
 import (
 	"github.com/go-resty/resty/v2"

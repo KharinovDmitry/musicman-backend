@@ -7,12 +7,15 @@ import (
 	"github.com/musicman-backend/config"
 	"github.com/musicman-backend/internal/di"
 	"github.com/musicman-backend/internal/http"
+	"github.com/musicman-backend/internal/scheduler"
+	"time"
 )
 
 type App struct {
 	container *di.Container
 	http      *config.HttpConfig
 	router    *gin.Engine
+	scheduler *scheduler.PaymentScheduler
 }
 
 func BuildApp(ctx context.Context, cfg *config.Config) (*App, error) {
@@ -28,6 +31,8 @@ func BuildApp(ctx context.Context, cfg *config.Config) (*App, error) {
 
 	app.router = http.SetupRouter(app.container)
 
+	app.scheduler = scheduler.NewPaymentScheduler(time.Second, app.container.Repository.PaymentRepository, app.container.Service.Payment)
+
 	return &app, nil
 }
 
@@ -39,6 +44,10 @@ func (a *App) Run(ctx context.Context) error {
 		if err != nil {
 			errChan <- err
 		}
+	}(a)
+
+	go func(a *App) {
+		a.scheduler.Start(ctx)
 	}(a)
 
 	err := <-errChan

@@ -14,10 +14,10 @@ import (
 )
 
 type User struct {
-	UUID      uuid.UUID `db:"uuid"`
-	Login     string    `db:"login"`
-	PassHash  string    `db:"password"`
-	Subscribe bool      `db:"subscribe"`
+	UUID     uuid.UUID `db:"uuid"`
+	Login    string    `db:"login"`
+	PassHash string    `db:"password"`
+	Tokens   int       `db:"tokens"`
 }
 
 type Repository struct {
@@ -32,7 +32,7 @@ func (r *Repository) CreateUser(ctx context.Context, login, passHash string) (en
 	const query = `
 		INSERT INTO users (login, password) 
 		VALUES ($1, $2) 
-		RETURNING uuid, login, password, subscribe 
+		RETURNING uuid, login, password, tokens 
 	`
 
 	var user User
@@ -40,7 +40,7 @@ func (r *Repository) CreateUser(ctx context.Context, login, passHash string) (en
 		&user.UUID,
 		&user.Login,
 		&user.PassHash,
-		&user.Subscribe,
+		&user.Tokens,
 	)
 	if err != nil {
 		return entity.User{}, fmt.Errorf("failed to create user: %w", err)
@@ -51,7 +51,7 @@ func (r *Repository) CreateUser(ctx context.Context, login, passHash string) (en
 
 func (r *Repository) GetUserByUUID(ctx context.Context, userUUID uuid.UUID) (entity.User, error) {
 	const query = `
-		SELECT uuid, login, password, subscribe 
+		SELECT uuid, login, password, tokens 
 		FROM users 
 		WHERE uuid = $1
 	`
@@ -61,7 +61,7 @@ func (r *Repository) GetUserByUUID(ctx context.Context, userUUID uuid.UUID) (ent
 		&user.UUID,
 		&user.Login,
 		&user.PassHash,
-		&user.Subscribe,
+		&user.Tokens,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -75,7 +75,7 @@ func (r *Repository) GetUserByUUID(ctx context.Context, userUUID uuid.UUID) (ent
 
 func (r *Repository) GetUserByLogin(ctx context.Context, login string) (entity.User, error) {
 	const query = `
-		SELECT uuid, login, password, subscribe 
+		SELECT uuid, login, password, tokens 
 		FROM users 
 		WHERE login = $1
 	`
@@ -85,7 +85,7 @@ func (r *Repository) GetUserByLogin(ctx context.Context, login string) (entity.U
 		&user.UUID,
 		&user.Login,
 		&user.PassHash,
-		&user.Subscribe,
+		&user.Tokens,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -97,31 +97,35 @@ func (r *Repository) GetUserByLogin(ctx context.Context, login string) (entity.U
 	return toEntity(user), nil
 }
 
-func (r *Repository) SetSubscribe(ctx context.Context, userUUID uuid.UUID, isSubscribe bool) error {
-	const query = `
-		UPDATE users 
-		SET subscribe = $1 
-		WHERE uuid = $2
-	`
-
-	result, err := r.db.Exec(ctx, query, isSubscribe, userUUID)
+func (r *Repository) UpdateUserBalance(ctx context.Context, userUUID uuid.UUID, amount int) error {
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to update subscription: %w", err)
+		return fmt.Errorf("failed to start transaction: %w", err)
 	}
 
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
-		return fmt.Errorf("user with UUID %s not found", userUUID)
+	var curBalance int
+	err = tx.QueryRow(ctx, `select tokens from users where uuid = $1`, userUUID).Scan(&curBalance)
+	if err != nil {
+		_ = tx.Rollback(ctx)
+		return fmt.Errorf("failed to get user balance: %w", err)
 	}
 
-	return nil
+	newBalance := curBalance + amount
+
+	_, err = tx.Exec(ctx, `update users set tokens = $1`, newBalance)
+	if err != nil {
+		_ = tx.Rollback(ctx)
+		return fmt.Errorf("failed to update user balance: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 func toEntity(user User) entity.User {
 	return entity.User{
-		UUID:      user.UUID,
-		Login:     user.Login,
-		PassHash:  user.PassHash,
-		Subscribe: user.Subscribe,
+		UUID:     user.UUID,
+		Login:    user.Login,
+		PassHash: user.PassHash,
+		Tokens:   user.Tokens,
 	}
 }
