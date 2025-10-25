@@ -23,7 +23,7 @@ type SampleRepository interface {
 }
 
 type PackRepository interface {
-	Create(ctx context.Context, pack entity.Pack) error
+	Create(ctx context.Context, pack entity.Pack) (uuid.UUID, error)
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Pack, error)
 	GetAll(ctx context.Context) ([]entity.Pack, error)
 	Update(ctx context.Context, pack entity.Pack) error
@@ -35,23 +35,31 @@ type FileRepository interface {
 	DownloadFile(ctx context.Context, bucketName, objectName, filePath string) error
 	GetFileURL(ctx context.Context, bucketName, objectName string) (string, error)
 	DeleteFile(ctx context.Context, bucketName, objectName string) error
+	CreateBucketIfNotExists(ctx context.Context, bucketName string) error
+}
+
+type UserRepository interface {
+	GetUserByLogin(ctx context.Context, login string) (entity.User, error)
 }
 
 type Service struct {
 	sampleRepo SampleRepository
 	packRepo   PackRepository
 	fileRepo   FileRepository
+	userRepo   UserRepository
 }
 
 func New(
 	sampleRepo SampleRepository,
 	packRepo PackRepository,
 	fileRepo FileRepository,
+	userRepo UserRepository,
 ) *Service {
 	return &Service{
 		sampleRepo: sampleRepo,
 		packRepo:   packRepo,
 		fileRepo:   fileRepo,
+		userRepo:   userRepo,
 	}
 }
 
@@ -65,6 +73,22 @@ func (s *Service) CreateSample(ctx context.Context, author, title, description, 
 		if err != nil {
 			return sampleID, fmt.Errorf("error getting pack while creating sample: %w", err)
 		}
+	}
+	if _, err := s.userRepo.GetUserByLogin(ctx, author); err != nil {
+		return sampleID, fmt.Errorf("error getting user by login: %w", err)
+	}
+
+	if author == "" {
+		return uuid.Nil, fmt.Errorf("author is empty")
+	}
+	if title == "" {
+		return uuid.Nil, fmt.Errorf("description is empty")
+	}
+	if description == "" {
+		return uuid.Nil, fmt.Errorf("genre is empty")
+	}
+	if genre == "" {
+		return uuid.Nil, fmt.Errorf("genre is empty")
 	}
 
 	sample := entity.Sample{
@@ -93,6 +117,10 @@ func (s *Service) UploadAudio(ctx context.Context, audioFilePath string, sampleI
 	}
 	if err != nil {
 		return fmt.Errorf("failed to get sample: %w", err)
+	}
+
+	if err := s.fileRepo.CreateBucketIfNotExists(ctx, BucketName); err != nil {
+		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 
 	if err := s.fileRepo.UploadFile(ctx, BucketName, sample.MinioKey, audioFilePath); err != nil {
@@ -126,7 +154,7 @@ func (s *Service) GetSamples(ctx context.Context) ([]entity.Sample, error) {
 	return samples, nil
 }
 
-func (s *Service) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string) (entity.Sample, error) {
+func (s *Service) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string, size *int64, duration *float64) (entity.Sample, error) {
 	existing, err := s.sampleRepo.GetByID(ctx, id)
 	if errors.Is(err, domain.ErrNotFound) {
 		return existing, err
@@ -152,6 +180,13 @@ func (s *Service) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.U
 			return existing, fmt.Errorf("pack not found: %w", err)
 		}
 		existing.PackID = packID
+	}
+
+	if size != nil {
+		existing.Size = *size
+	}
+	if duration != nil {
+		existing.Duration = *duration
 	}
 
 	if err = s.sampleRepo.Update(ctx, existing); err != nil {
@@ -187,8 +222,32 @@ func (s *Service) GetSampleDownloadURL(ctx context.Context, minioKey string) (st
 	return url, nil
 }
 
-func (s *Service) CreatePack(ctx context.Context, pack entity.Pack) error {
-	return s.packRepo.Create(ctx, pack)
+func (s *Service) CreatePack(ctx context.Context, name, description, genre, author string) (uuid.UUID, error) {
+	if _, err := s.userRepo.GetUserByLogin(ctx, author); err != nil {
+		return uuid.Nil, fmt.Errorf("error getting user by login: %w", err)
+	}
+
+	if name == "" {
+		return uuid.Nil, fmt.Errorf("name is empty")
+	}
+	if description == "" {
+		return uuid.Nil, fmt.Errorf("description is empty")
+	}
+	if genre == "" {
+		return uuid.Nil, fmt.Errorf("genre is empty")
+	}
+	if author == "" {
+		return uuid.Nil, fmt.Errorf("author is empty")
+	}
+
+	return s.packRepo.Create(ctx, entity.Pack{
+		Name:        name,
+		Description: description,
+		Genre:       genre,
+		Author:      author,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	})
 }
 
 func (s *Service) GetPack(ctx context.Context, id uuid.UUID) (entity.Pack, error) {

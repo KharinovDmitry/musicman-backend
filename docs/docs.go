@@ -188,7 +188,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dto.PackDTO"
+                            "$ref": "#/definitions/dto.UUIDResponse"
                         }
                     },
                     "400": {
@@ -425,6 +425,17 @@ const docTemplate = `{
                     "samples"
                 ],
                 "summary": "Создает новый семпл (аудио загружается для созданного семпла через UploadAudio эндпоинт по ID семпла)",
+                "parameters": [
+                    {
+                        "description": "Pack data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateSampleRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "Created",
@@ -568,6 +579,13 @@ const docTemplate = `{
                         "name": "file",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sample ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -670,6 +688,32 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreateSampleRequest": {
+            "type": "object",
+            "required": [
+                "author",
+                "description",
+                "genre",
+                "title"
+            ],
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "genre": {
+                    "type": "string"
+                },
+                "pack_id": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }

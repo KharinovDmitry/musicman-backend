@@ -2,9 +2,12 @@ package music
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -19,12 +22,12 @@ type Service interface {
 	GetSample(ctx context.Context, sampleID uuid.UUID) (entity.Sample, error)
 	CreateSample(ctx context.Context, author, title, description, genre string, packID *uuid.UUID) (uuid.UUID, error)
 	UploadAudio(ctx context.Context, audioFilePath string, sampleID uuid.UUID) error
-	UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string) (entity.Sample, error)
+	UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string, size *int64, duration *float64) (entity.Sample, error)
 	DeleteSample(ctx context.Context, id uuid.UUID) error
 
 	GetAllPacks(ctx context.Context) ([]entity.Pack, error)
 	GetPack(ctx context.Context, id uuid.UUID) (entity.Pack, error)
-	CreatePack(ctx context.Context, pack entity.Pack) error
+	CreatePack(ctx context.Context, name, description, genre, author string) (uuid.UUID, error)
 	UpdatePack(ctx context.Context, id uuid.UUID, name, description, genre *string) error
 	DeletePack(ctx context.Context, id uuid.UUID) error
 }
@@ -113,6 +116,7 @@ func (h *Handler) GetSample(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param file formData file true "Аудио файл (sample)"
+// @Param id path string true "Sample ID"
 // @Success 201 {object} dto.DownloadURLResponse
 // @Success 400 {object} dto.ApiError
 // @Success 404 {object} dto.ApiError
@@ -131,8 +135,13 @@ func (h *Handler) UploadAudio(c *gin.Context) {
 		return
 	}
 
-	if file.Header.Get("Content-Type") != "audio/wav" {
-		c.JSON(http.StatusBadRequest, dto.NewApiError("only audio wav is supported"))
+	filename := file.Filename
+	if !strings.HasSuffix(strings.ToLower(filename), ".wav") {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":    "Invalid file extension",
+			"expected": ".wav",
+			"received": filename,
+		})
 		return
 	}
 
@@ -156,6 +165,26 @@ func (h *Handler) UploadAudio(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 		return
 	}
+	// Открываем файл для получения duration
+	fileReader, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.NewApiError("failed to open file"))
+		return
+	}
+	defer fileReader.Close()
+
+	duration, err := getWAVDuration(fileReader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
+		return
+	}
+
+	sizeMB := file.Size
+
+	if _, err := h.service.UpdateSample(c.Request.Context(), id, nil, nil, nil, nil, nil, &sizeMB, &duration); err != nil {
+		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
+		return
+	}
 
 	downloadURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 	if err != nil {
@@ -166,13 +195,100 @@ func (h *Handler) UploadAudio(c *gin.Context) {
 	c.JSON(http.StatusCreated, dto.DownloadURLResponse{DownloadURL: downloadURL})
 }
 
+// Функция для получения длительности WAV файла
+func getWAVDuration(file multipart.File) (float64, error) {
+	// Сохраняем начальную позицию
+	_, err := file.Seek(0, 0)
+	if err != nil {
+		return 0, err
+	}
+
+	// Читаем RIFF header
+	riffHeader := make([]byte, 12)
+	_, err = file.Read(riffHeader)
+	if err != nil {
+		return 0, err
+	}
+
+	if string(riffHeader[0:4]) != "RIFF" || string(riffHeader[8:12]) != "WAVE" {
+		return 0, fmt.Errorf("invalid WAV file format")
+	}
+
+	// Ищем fmt chunk
+	foundFmt := false
+	var byteRate uint32
+
+	for !foundFmt {
+		chunkHeader := make([]byte, 8)
+		_, err := file.Read(chunkHeader)
+		if err != nil {
+			return 0, err
+		}
+
+		chunkID := string(chunkHeader[0:4])
+		chunkSize := binary.LittleEndian.Uint32(chunkHeader[4:8])
+
+		if chunkID == "fmt " {
+			fmtData := make([]byte, chunkSize)
+			_, err := file.Read(fmtData)
+			if err != nil {
+				return 0, err
+			}
+
+			// Получаем byteRate (байты 8-11 в fmt chunk)
+			byteRate = binary.LittleEndian.Uint32(fmtData[8:12])
+			foundFmt = true
+		} else {
+			// Пропускаем другие chunks
+			_, err = file.Seek(int64(chunkSize), 1)
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	// Ищем data chunk
+	var dataSize uint32
+	foundData := false
+
+	for !foundData {
+		chunkHeader := make([]byte, 8)
+		_, err := file.Read(chunkHeader)
+		if err != nil {
+			return 0, err
+		}
+
+		chunkID := string(chunkHeader[0:4])
+		dataSize = binary.LittleEndian.Uint32(chunkHeader[4:8])
+
+		if chunkID == "data" {
+			foundData = true
+			break
+		} else {
+			// Пропускаем другие chunks
+			_, err = file.Seek(int64(dataSize), 1)
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	// Вычисляем длительность
+	if byteRate == 0 {
+		return 0, fmt.Errorf("invalid byte rate")
+	}
+
+	duration := float64(dataSize) / float64(byteRate)
+	return duration, nil
+}
+
 // CreateSample godoc
 // @Summary Создает новый семпл (аудио загружается для созданного семпла через UploadAudio эндпоинт по ID семпла)
 // @Tags samples
 // @Accept application/json
 // @Produce json
 // @Security BearerAuth
-// @Body input body dto.CreateSampleRequest
+// @Param request body dto.CreateSampleRequest true "Pack data"
 // @Success 201 {object} dto.UUIDResponse
 // @Success 400 {object} dto.ApiError
 // @Success 500 {object} dto.ApiError
@@ -217,7 +333,7 @@ func (h *Handler) UpdateSample(c *gin.Context) {
 		return
 	}
 
-	sample, err := h.service.UpdateSample(c.Request.Context(), id, req.PackID, req.Title, req.Author, req.Description, req.Genre)
+	sample, err := h.service.UpdateSample(c.Request.Context(), id, req.PackID, req.Title, req.Author, req.Description, req.Genre, nil, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 		return
@@ -353,7 +469,7 @@ func (h *Handler) GetPack(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body dto.CreatePackRequest true "Pack data"
-// @Success 201 {object} dto.PackDTO
+// @Success 201 {object} dto.UUIDResponse
 // @Success 400 {object} dto.ApiError
 // @Success 500 {object} dto.ApiError
 // @Router /packs [post]
@@ -364,18 +480,18 @@ func (h *Handler) CreatePack(c *gin.Context) {
 		return
 	}
 
-	err := h.service.CreatePack(c.Request.Context(), entity.Pack{
-		Name:        req.Name,
-		Description: req.Description,
-		Genre:       req.Genre,
-		Author:      req.Author,
-	})
+	id, err := h.service.CreatePack(c.Request.Context(),
+		req.Name,
+		req.Description,
+		req.Genre,
+		req.Author,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 		return
 	}
 
-	c.Status(http.StatusCreated)
+	c.JSON(http.StatusCreated, dto.UUIDResponse{UUID: id})
 }
 
 // UpdatePack godoc

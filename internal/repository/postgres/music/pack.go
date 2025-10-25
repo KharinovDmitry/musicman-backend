@@ -21,16 +21,24 @@ func NewPack(db *pgxpool.Pool) *Pack {
 	return &Pack{db: db}
 }
 
-func (r *Pack) Create(ctx context.Context, pack entity.Pack) error {
+func (r *Pack) Create(ctx context.Context, pack entity.Pack) (uuid.UUID, error) {
 	query := `
-	INSERT INTO packs (id, name, description, genre, author, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	INSERT INTO packs (name, description, genre, author, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	RETURNING id`
 
-	_, err := r.db.Exec(ctx, query,
-		pack.ID, pack.Name, pack.Description, pack.Genre, pack.Author,
-		pack.CreatedAt, pack.UpdatedAt)
+	var id uuid.UUID
+	err := r.db.QueryRow(
+		ctx, query,
+		pack.Name,
+		pack.Description,
+		pack.Genre,
+		pack.Author,
+		pack.CreatedAt,
+		pack.UpdatedAt,
+	).Scan(&id)
 
-	return err
+	return id, err
 }
 
 func (r *Pack) GetByID(ctx context.Context, id uuid.UUID) (entity.Pack, error) {

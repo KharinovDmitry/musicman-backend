@@ -24,7 +24,7 @@ func NewSample(db *pgxpool.Pool) *Sample {
 func (r *Sample) Create(ctx context.Context, sample entity.Sample) (uuid.UUID, error) {
 	query := `
 		INSERT INTO samples (title, author, description, genre, duration, size, minio_key, pack_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id`
 
 	var id uuid.UUID
@@ -32,8 +32,8 @@ func (r *Sample) Create(ctx context.Context, sample entity.Sample) (uuid.UUID, e
 	row := r.db.QueryRow(ctx, query,
 		sample.Title, sample.Author, sample.Description, sample.Genre, sample.Duration, sample.Size, sample.MinioKey,
 		sample.PackID, sample.CreatedAt, sample.UpdatedAt)
-	if err := row.Scan(id); err != nil {
-		return id, fmt.Errorf("failed to create in db")
+	if err := row.Scan(&id); err != nil {
+		return id, fmt.Errorf("failed to create in db: %w", err)
 	}
 
 	return id, nil
@@ -140,8 +140,8 @@ func (r *Sample) GetByPack(ctx context.Context, packID uuid.UUID) ([]entity.Samp
 func (r *Sample) Update(ctx context.Context, sample entity.Sample) error {
 	query := `
 	UPDATE samples SET title=$1, author=$2, description=$3, genre=$4, 
-	                   duration=$7, size=$8, minio_key=$9, pack_id=$10, updated_at=$11
-	WHERE id=$12`
+	                   duration=$5, size=$6, minio_key=$7, pack_id=$8, updated_at=$9
+	WHERE id=$10`
 
 	_, err := r.db.Exec(ctx, query,
 		sample.Title, sample.Author, sample.Description, sample.Genre,
