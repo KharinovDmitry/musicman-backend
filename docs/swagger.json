@@ -1,0 +1,333 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Привет, Полина! Это документация для тебя, прикладываю также задачу на pm.is74.ru",
+        "title": "MusicMan Backend API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/api/v1",
+    "paths": {
+        "/auth/sign-in": {
+            "post": {
+                "description": "Выполняет вход пользователя в систему и возвращает JWT токен",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Аутентификация пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные для входа",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Успешная аутентификация",
+                        "schema": {
+                            "$ref": "#/definitions/dto.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат запроса",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Неверные учетные данные",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/sign-up": {
+            "post": {
+                "description": "Создает нового пользователя и возвращает JWT токен",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Регистрация нового пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные для регистрации",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Успешная регистрация",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RegisterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат запроса",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "Пользователь уже существует",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/payments/history": {
+            "get": {
+                "description": "Возвращает историю платежей текущего авторизованного пользователя",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payments"
+                ],
+                "summary": "Получить список платежей пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer токен",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список платежей пользователя",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.UserPayment"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера или не удалось получить платежи"
+                    }
+                }
+            }
+        },
+        "/payments/new": {
+            "post": {
+                "description": "Создаёт платёж через YooKassa и перенаправляет пользователя на страницу оплаты.",
+                "tags": [
+                    "payments"
+                ],
+                "summary": "Создание нового платежа",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer токен",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные для создания платежа. return_uri - ссылка на которую вернуть пользователя после оплаты. amount в копейках",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreatePaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "301": {
+                        "description": "Redirect — ссылка на YooKassa",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Невалидное тело запроса",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера или не удалось создать платёж"
+                    }
+                }
+            }
+        },
+        "/profile/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает информацию о текущем авторизованном пользователе",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Получить профиль пользователя",
+                "responses": {
+                    "200": {
+                        "description": "Успешное получение профиля",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UserProfile"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.ApiError": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreatePaymentRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "return_uri"
+            ],
+            "properties": {
+                "amount": {
+                    "description": "Amount сумма платежа в КОПЕЙКАХ",
+                    "type": "integer"
+                },
+                "return_uri": {
+                    "description": "ReturnURI ссылка на которую вернуть после оплаты",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserPayment": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserProfile": {
+            "type": "object",
+            "properties": {
+                "login": {
+                    "type": "string"
+                },
+                "tokens": {
+                    "type": "integer"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "JWT токен в формате: \"Bearer {token}\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}
