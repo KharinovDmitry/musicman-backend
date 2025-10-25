@@ -40,7 +40,6 @@ func AuthMiddleware(verifier TokenVerifier) gin.HandlerFunc {
 
 		ctx.Set(constant.CtxUserUUID, claims.UserUUID.String())
 		ctx.Set(constant.CtxUserLogin, claims.Login)
-		ctx.Set(constant.CtxSubscribeStatus, claims.Subscribe)
 		ctx.Next()
 	}
 }

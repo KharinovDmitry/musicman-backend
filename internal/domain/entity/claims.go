@@ -6,8 +6,7 @@ import (
 )
 
 type JWTClaims struct {
-	UserUUID  uuid.UUID `json:"user_uuid"`
-	Login     string    `json:"login"`
-	Subscribe bool      `json:"subscribe"`
+	UserUUID uuid.UUID `json:"user_uuid"`
+	Login    string    `json:"login"`
 	jwt.RegisteredClaims
 }

@@ -3,6 +3,7 @@ package http
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/musicman-backend/internal/http/handler/payment"
 
 	"github.com/musicman-backend/internal/di"
 	"github.com/musicman-backend/internal/http/handler/auth"
@@ -36,8 +37,16 @@ func SetupRouter(container *di.Container) *gin.Engine {
 	profileGroup := apiV1.Group("/profile")
 	profileGroup.Use(authMiddleware)
 	{
-		profileHandler := profile.NewHandler()
+		profileHandler := profile.NewHandler(container.Repository.UserRepository)
 		profileGroup.GET("/me", profileHandler.GetMyProfile)
+	}
+
+	paymentsGroup := apiV1.Group("/payments")
+	paymentsGroup.Use(authMiddleware)
+	{
+		paymentHandler := payment.NewHandler(container.Service.Payment, container.Repository.PaymentRepository)
+		paymentsGroup.POST("/new", paymentHandler.NewPayment)
+		paymentsGroup.GET("/history", paymentHandler.GetPayments)
 	}
 
 	return router

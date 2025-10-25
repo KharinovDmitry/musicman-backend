@@ -1,8 +1,9 @@
 package dto
 
-type UserProfile struct {
-	UUID  string `json:"uuid"`
-	Login string `json:"login"`
+import "github.com/google/uuid"
 
-	SubscribeStatus bool `json:"subscribe_status"`
+type UserProfile struct {
+	UUID   uuid.UUID `json:"uuid"`
+	Login  string    `json:"login"`
+	Tokens int       `json:"tokens"`
 }
