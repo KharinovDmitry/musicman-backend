@@ -3,6 +3,11 @@ package yookassa
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
+)
+
+const (
+	HeaderIdempotenceKey = "Idempotence-Key"
 )
 
 func (c *Client) CreatePayment(ctx context.Context, request CreatePaymentRequest) (CreatePaymentResponse, error) {
@@ -11,9 +16,10 @@ func (c *Client) CreatePayment(ctx context.Context, request CreatePaymentRequest
 	var response CreatePaymentResponse
 	resp, err := c.client.R().
 		SetContext(ctx).
+		SetHeader(HeaderIdempotenceKey, uuid.New().String()).
 		SetBody(request).
 		SetBasicAuth(c.accountID, c.secretKey).
-		SetResult(&CreatePaymentResponse{}).
+		SetResult(&response).
 		Post(c.host.JoinPath(path).String())
 	if err != nil {
 		return CreatePaymentResponse{}, fmt.Errorf("error creating payment: %w", err)
@@ -33,6 +39,7 @@ func (c *Client) GetPayment(ctx context.Context, id string) (PaymentByIDResponse
 
 	resp, err := c.client.R().
 		SetContext(ctx).
+		SetHeader(HeaderIdempotenceKey, uuid.New().String()).
 		SetBasicAuth(c.accountID, c.secretKey).
 		SetResult(&response).
 		Get(c.host.JoinPath(path).String())

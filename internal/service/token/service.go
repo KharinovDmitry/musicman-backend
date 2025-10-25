@@ -30,9 +30,8 @@ func New(secret string) *Service {
 
 func (s *Service) CreateToken(ctx context.Context, user entity.User) (string, error) {
 	claims := entity.JWTClaims{
-		UserUUID:  user.UUID,
-		Login:     user.Login,
-		Subscribe: user.Subscribe,
+		UserUUID: user.UUID,
+		Login:    user.Login,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ExpireTime)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

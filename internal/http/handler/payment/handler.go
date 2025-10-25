@@ -3,8 +3,10 @@ package payment
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/musicman-backend/internal/domain/constant"
+	"github.com/musicman-backend/internal/domain/entity"
 	"github.com/musicman-backend/internal/http/dto"
 	"log/slog"
 	"net/http"
@@ -14,13 +16,21 @@ type Service interface {
 	CreatePayment(ctx context.Context, returnURI string, userUUID uuid.UUID, amount int) (string, error)
 }
 
-type Handler struct {
-	service Service
+type History interface {
+	GetPaymentsByUser(ctx context.Context, userUUID uuid.UUID) ([]entity.Payment, error)
 }
 
-func NewHandler(service Service) *Handler {
+type Handler struct {
+	service  Service
+	history  History
+	validate *validator.Validate
+}
+
+func NewHandler(service Service, history History) *Handler {
 	return &Handler{
-		service: service,
+		service:  service,
+		history:  history,
+		validate: validator.New(),
 	}
 }
 
@@ -40,6 +50,13 @@ func (h *Handler) NewPayment(ctx *gin.Context) {
 		return
 	}
 
+	err = h.validate.Struct(req)
+	if err != nil {
+		slog.Warn("failed to validate create payment request", slog.String("err", err.Error()))
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, dto.NewApiError(err.Error()))
+		return
+	}
+
 	redirect, err := h.service.CreatePayment(ctx, req.ReturnURI, userUUID, req.Amount)
 	if err != nil {
 		slog.Error("failed to create payment", slog.String("err", err.Error()))
@@ -51,5 +68,20 @@ func (h *Handler) NewPayment(ctx *gin.Context) {
 }
 
 func (h *Handler) GetPayments(ctx *gin.Context) {
+	userUUIDstr := ctx.GetString(constant.CtxUserUUID)
+	userUUID, err := uuid.Parse(userUUIDstr)
+	if err != nil {
+		slog.Error("failed to parse user uuid", slog.String("err", err.Error()))
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
 
+	payments, err := h.history.GetPaymentsByUser(ctx, userUUID)
+	if err != nil {
+		slog.Error("failed to get user payments", slog.String("err", err.Error()))
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, dto.UserPaymentsFromEntities(payments))
 }

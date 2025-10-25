@@ -7,7 +7,7 @@ import (
 	"github.com/musicman-backend/internal/domain/constant"
 	"github.com/musicman-backend/internal/domain/entity"
 	"github.com/musicman-backend/pkg/client/yookassa"
-	"strconv"
+	"log/slog"
 	"time"
 )
 
@@ -44,16 +44,19 @@ func NewService(yookassa YooKassa, repo Repository, balance BalanceController) *
 }
 
 func (s *Service) CreatePayment(ctx context.Context, returnURI string, userUUID uuid.UUID, amount int) (string, error) {
+	rub := amount / 100
+	kop := amount % 100
+
 	resp, err := s.yookassa.CreatePayment(ctx, yookassa.CreatePaymentRequest{
 		Amount: yookassa.Amount{
-			Value:    strconv.Itoa(amount),
+			Value:    fmt.Sprintf("%d.%d", rub, kop),
 			Currency: "RUB",
 		},
 		Description: "Покупка токенов",
 		Test:        true,
-		Confirmation: yookassa.Confirmation{
-			Type:            "redirect",
-			ConfirmationURL: returnURI,
+		Confirmation: yookassa.ConfirmationCreate{
+			Type:      "redirect",
+			ReturnURL: returnURI,
 		},
 		MerchantCustomerID: userUUID.String(),
 		Capture:            true,
@@ -93,6 +96,10 @@ func (s *Service) UpdatePaymentStatus(ctx context.Context, payment entity.Paymen
 		if err != nil {
 			return fmt.Errorf("update user balance: %w", err)
 		}
+		slog.Info("payment updated",
+			slog.String("payment_id", payment.ID),
+			slog.String("user_uuid", payment.UserUUID.String()),
+		)
 	}
 
 	payment.PaymentStatus = entity.PaymentStatus(resp.Status)
@@ -101,6 +108,6 @@ func (s *Service) UpdatePaymentStatus(ctx context.Context, payment entity.Paymen
 }
 
 func (s *Service) updateUserBalance(ctx context.Context, userUUID uuid.UUID, amount int) error {
-	tokens := amount * s.tokenForRub
+	tokens := amount / 100 * s.tokenForRub
 	return s.balance.UpdateUserBalance(ctx, userUUID, tokens)
 }

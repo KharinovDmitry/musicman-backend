@@ -8,7 +8,7 @@ import (
 type Client struct {
 	client *resty.Client
 
-	host      url.URL
+	host      *url.URL
 	secretKey string
 	accountID string
 }

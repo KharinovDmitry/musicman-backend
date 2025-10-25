@@ -112,7 +112,7 @@ func (r *Repository) UpdateUserBalance(ctx context.Context, userUUID uuid.UUID, 
 
 	newBalance := curBalance + amount
 
-	_, err = tx.Exec(ctx, `update users set tokens = $1`, newBalance)
+	_, err = tx.Exec(ctx, `update users set tokens = $1 where uuid = $2`, newBalance, userUUID)
 	if err != nil {
 		_ = tx.Rollback(ctx)
 		return fmt.Errorf("failed to update user balance: %w", err)

@@ -44,7 +44,7 @@ func SetupRouter(container *di.Container) *gin.Engine {
 	paymentsGroup := apiV1.Group("/payments")
 	paymentsGroup.Use(authMiddleware)
 	{
-		paymentHandler := payment.NewHandler(container.Service.Payment)
+		paymentHandler := payment.NewHandler(container.Service.Payment, container.Repository.PaymentRepository)
 		paymentsGroup.POST("/new", paymentHandler.NewPayment)
 		paymentsGroup.GET("/history", paymentHandler.GetPayments)
 	}

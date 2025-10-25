@@ -11,6 +11,6 @@ http:
   addr: ":8080"
 
 yookassa:
-  host: "fd"
-  secret_key: "secret_key"
+  host: "https://api.yookassa.ru"
+  secret_key: ""
   account_id: ""
