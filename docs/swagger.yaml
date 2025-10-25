@@ -5,6 +5,18 @@ definitions:
       message:
         type: string
     type: object
+  dto.CreatePaymentRequest:
+    properties:
+      amount:
+        description: Amount сумма платежа в КОПЕЙКАХ
+        type: integer
+      return_uri:
+        description: ReturnURI ссылка на которую вернуть после оплаты
+        type: string
+    required:
+    - amount
+    - return_uri
+    type: object
   dto.LoginRequest:
     properties:
       password:
@@ -29,12 +41,25 @@ definitions:
       token:
         type: string
     type: object
+  dto.UserPayment:
+    properties:
+      amount:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      payment_status:
+        type: string
+    type: object
   dto.UserProfile:
     properties:
       login:
         type: string
-      subscribe_status:
-        type: boolean
+      tokens:
+        type: integer
       uuid:
         type: string
     type: object
@@ -113,6 +138,60 @@ paths:
       summary: Регистрация нового пользователя
       tags:
       - auth
+  /payments/history:
+    get:
+      description: Возвращает историю платежей текущего авторизованного пользователя
+      parameters:
+      - description: Bearer токен
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список платежей пользователя
+          schema:
+            items:
+              $ref: '#/definitions/dto.UserPayment'
+            type: array
+        "500":
+          description: Ошибка сервера или не удалось получить платежи
+      summary: Получить список платежей пользователя
+      tags:
+      - payments
+  /payments/new:
+    post:
+      description: Создаёт платёж через YooKassa и перенаправляет пользователя на
+        страницу оплаты.
+      parameters:
+      - description: Bearer токен
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Данные для создания платежа. return_uri - ссылка на которую вернуть
+          пользователя после оплаты. amount в копейках
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreatePaymentRequest'
+      responses:
+        "301":
+          description: Redirect — ссылка на YooKassa
+          schema:
+            type: string
+        "400":
+          description: Невалидное тело запроса
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Ошибка сервера или не удалось создать платёж
+      summary: Создание нового платежа
+      tags:
+      - payments
   /profile/me:
     get:
       description: Возвращает информацию о текущем авторизованном пользователе

@@ -34,6 +34,16 @@ func NewHandler(service Service, history History) *Handler {
 	}
 }
 
+// NewPayment godoc
+// @Summary Создание нового платежа
+// @Description Создаёт платёж через YooKassa и перенаправляет пользователя на страницу оплаты.
+// @Tags payments
+// @Param Authorization header string true "Bearer токен"
+// @Param request body dto.CreatePaymentRequest true "Данные для создания платежа. return_uri - ссылка на которую вернуть пользователя после оплаты. amount в копейках"
+// @Success 301 {string} string "Redirect — ссылка на YooKassa"
+// @Failure 400 {object} dto.ApiError "Невалидное тело запроса"
+// @Failure 500 "Ошибка сервера или не удалось создать платёж"
+// @Router /payments/new [post]
 func (h *Handler) NewPayment(ctx *gin.Context) {
 	userUUIDstr := ctx.GetString(constant.CtxUserUUID)
 	userUUID, err := uuid.Parse(userUUIDstr)
@@ -67,6 +77,15 @@ func (h *Handler) NewPayment(ctx *gin.Context) {
 	ctx.Redirect(http.StatusMovedPermanently, redirect)
 }
 
+// GetPayments godoc
+// @Summary Получить список платежей пользователя
+// @Description Возвращает историю платежей текущего авторизованного пользователя
+// @Tags payments
+// @Produce json
+// @Param Authorization header string true "Bearer токен"
+// @Success 200 {array} dto.UserPayment "Список платежей пользователя"
+// @Failure 500 "Ошибка сервера или не удалось получить платежи"
+// @Router /payments/history [get]
 func (h *Handler) GetPayments(ctx *gin.Context) {
 	userUUIDstr := ctx.GetString(constant.CtxUserUUID)
 	userUUID, err := uuid.Parse(userUUIDstr)

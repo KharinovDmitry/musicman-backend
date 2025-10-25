@@ -37,7 +37,7 @@ func SetupRouter(container *di.Container) *gin.Engine {
 	profileGroup := apiV1.Group("/profile")
 	profileGroup.Use(authMiddleware)
 	{
-		profileHandler := profile.NewHandler()
+		profileHandler := profile.NewHandler(container.Repository.UserRepository)
 		profileGroup.GET("/me", profileHandler.GetMyProfile)
 	}
 
