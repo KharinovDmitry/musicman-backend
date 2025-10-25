@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Postgres Postgres   `yaml:"postgres"`
 	Http     HttpConfig `yaml:"http"`
+	YooKassa YooKassa   `yaml:"yookassa"`
 }
 
 type HttpConfig struct {
@@ -69,6 +70,12 @@ func (p *Postgres) ToDSN() string {
 		p.Database,
 		p.AppName,
 	)
+}
+
+type YooKassa struct {
+	Host      string `yaml:"host"`
+	SecretKey string `yaml:"secret_key"`
+	AccountID string `yaml:"account_id"`
 }
 
 func ParseConfig(path string) (*Config, error) {

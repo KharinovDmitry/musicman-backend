@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/musicman-backend/cmd/migrator"
+	"github.com/musicman-backend/internal/repository/postgres/payments"
 	"github.com/musicman-backend/internal/repository/postgres/users"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,7 +14,8 @@ import (
 )
 
 type Manager struct {
-	UserRepository *users.Repository
+	UserRepository    *users.Repository
+	PaymentRepository *payments.Repository
 
 	pg *pgxpool.Pool
 }
@@ -33,6 +35,7 @@ func Init(ctx context.Context, cfg *config.Config) (*Manager, error) {
 	}
 
 	manager.UserRepository = users.NewRepository(manager.pg)
+	manager.PaymentRepository = payments.New(manager.pg)
 
 	return &manager, nil
 }
