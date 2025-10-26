@@ -340,6 +340,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/payments/history": {
+            "get": {
+                "description": "Возвращает историю платежей текущего авторизованного пользователя",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payments"
+                ],
+                "summary": "Получить список платежей пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer токен",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список платежей пользователя",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.UserPayment"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера или не удалось получить платежи"
+                    }
+                }
+            }
+        },
+        "/payments/new": {
+            "post": {
+                "description": "Создаёт платёж через YooKassa и перенаправляет пользователя на страницу оплаты.",
+                "tags": [
+                    "payments"
+                ],
+                "summary": "Создание нового платежа",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer токен",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные для создания платежа. return_uri - ссылка на которую вернуть пользователя после оплаты. amount в копейках",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreatePaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "301": {
+                        "description": "Redirect — ссылка на YooKassa",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Невалидное тело запроса",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера или не удалось создать платёж"
+                    }
+                }
+            }
+        },
         "/profile/me": {
             "get": {
                 "security": [
@@ -692,6 +771,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.CreatePaymentRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "return_uri"
+            ],
+            "properties": {
+                "amount": {
+                    "description": "Amount сумма платежа в КОПЕЙКАХ",
+                    "type": "integer"
+                },
+                "return_uri": {
+                    "description": "ReturnURI ссылка на которую вернуть после оплаты",
+                    "type": "string"
+                }
+            }
+        },
         "dto.CreateSampleRequest": {
             "type": "object",
             "required": [
@@ -887,14 +983,34 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.UserPayment": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.UserProfile": {
             "type": "object",
             "properties": {
                 "login": {
                     "type": "string"
                 },
-                "subscribe_status": {
-                    "type": "boolean"
+                "tokens": {
+                    "type": "integer"
                 },
                 "uuid": {
                     "type": "string"
