@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-resty/resty/v2"
+
 	"github.com/musicman-backend/config"
 	"github.com/musicman-backend/internal/repository"
 	"github.com/musicman-backend/internal/service"

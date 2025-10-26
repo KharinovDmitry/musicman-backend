@@ -2,18 +2,29 @@ package config
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Postgres Postgres   `yaml:"postgres"`
-	Http     HttpConfig `yaml:"http"`
+	Postgres Postgres    `yaml:"postgres"`
+	Http     HttpConfig  `yaml:"http"`
+	Minio    MinioConfig `yaml:"minio"`
 	YooKassa YooKassa   `yaml:"yookassa"`
 }
 
 type HttpConfig struct {
 	Addr string `yaml:"addr"`
+}
+
+type MinioConfig struct {
+	Endpoint   string `yaml:"endpoint"`
+	AccessKey  string `yaml:"access_key"`
+	SecretKey  string `yaml:"secret_key"`
+	UseSSL     bool   `yaml:"use_ssl"`
+	BucketName string `yaml:"bucket_name"`
+	MaxRetries int    `yaml:"max_retries"`
 }
 
 const dsnTemplate = "host=%s port=%s user=%s password=%s dbname=%s application_name=%s sslmode=disable"

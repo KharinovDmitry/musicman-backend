@@ -9,6 +9,8 @@ import (
 
 	"github.com/musicman-backend/config"
 	"github.com/musicman-backend/internal/app"
+
+	_ "github.com/musicman-backend/docs"
 )
 
 const (

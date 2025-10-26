@@ -1,14 +1,16 @@
 package profile
 
 import (
+	"net/http"
+
 	"context"
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/musicman-backend/internal/domain/constant"
 	"github.com/musicman-backend/internal/domain/entity"
 	"github.com/musicman-backend/internal/http/dto"
-	"log/slog"
-	"net/http"
 )
 
 type UserRepo interface {

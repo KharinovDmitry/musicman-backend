@@ -7,6 +7,14 @@ postgres:
   app_name: "musicman"
   max_conns: 3
 
+minio:
+  endpoint: "localhost:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  use_ssl: false
+  bucket_name: "musicman"
+  max_retries: 5
+
 http:
   addr: ":8080"
 

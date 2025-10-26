@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/musicman-backend/config"
 	"github.com/musicman-backend/internal/di"

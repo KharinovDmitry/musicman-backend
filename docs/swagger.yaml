@@ -5,6 +5,22 @@ definitions:
       message:
         type: string
     type: object
+  dto.CreatePackRequest:
+    properties:
+      author:
+        type: string
+      description:
+        type: string
+      genre:
+        type: string
+      name:
+        type: string
+    required:
+    - author
+    - description
+    - genre
+    - name
+    type: object
   dto.CreatePaymentRequest:
     properties:
       amount:
@@ -16,6 +32,29 @@ definitions:
     required:
     - amount
     - return_uri
+    type: object
+  dto.CreateSampleRequest:
+    properties:
+      author:
+        type: string
+      description:
+        type: string
+      genre:
+        type: string
+      pack_id:
+        type: string
+      title:
+        type: string
+    required:
+    - author
+    - description
+    - genre
+    - title
+    type: object
+  dto.DownloadURLResponse:
+    properties:
+      download_url:
+        type: string
     type: object
   dto.LoginRequest:
     properties:
@@ -29,6 +68,32 @@ definitions:
       token:
         type: string
     type: object
+  dto.PackDTO:
+    properties:
+      author:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      genre:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.PackWithSamplesResponse:
+    properties:
+      pack:
+        $ref: '#/definitions/dto.PackDTO'
+      samples:
+        items:
+          $ref: '#/definitions/dto.SampleDTO'
+        type: array
+    type: object
   dto.RegisterRequest:
     properties:
       password:
@@ -39,6 +104,60 @@ definitions:
   dto.RegisterResponse:
     properties:
       token:
+        type: string
+    type: object
+  dto.SampleDTO:
+    properties:
+      author:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      download_url:
+        type: string
+      duration:
+        type: number
+      genre:
+        type: string
+      id:
+        type: string
+      pack_id:
+        type: string
+      size:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.UUIDResponse:
+    properties:
+      uuid:
+        type: string
+    type: object
+  dto.UpdatePackRequest:
+    properties:
+      author:
+        type: string
+      description:
+        type: string
+      genre:
+        type: string
+      name:
+        type: string
+    type: object
+  dto.UpdateSampleRequest:
+    properties:
+      author:
+        type: string
+      description:
+        type: string
+      genre:
+        type: string
+      pack_id:
+        type: string
+      title:
         type: string
     type: object
   dto.UserPayment:
@@ -138,6 +257,144 @@ paths:
       summary: Регистрация нового пользователя
       tags:
       - auth
+  /packs:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.PackDTO'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Получение всех паков (без семплов)
+      tags:
+      - packs
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Pack data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreatePackRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UUIDResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Создает пак семплов (без семплов)
+      tags:
+      - packs
+  /packs/{id}:
+    delete:
+      parameters:
+      - description: Pack ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Удаляет пак
+      tags:
+      - packs
+    get:
+      parameters:
+      - description: Pack ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PackWithSamplesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Получает пак вместе с семплами (но без аудио содержимого)
+      tags:
+      - packs
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Pack ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdatePackRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Обновляет пак
+      tags:
+      - packs
   /payments/history:
     get:
       description: Возвращает историю платежей текущего авторизованного пользователя
@@ -211,6 +468,188 @@ paths:
       summary: Получить профиль пользователя
       tags:
       - profile
+  /samples:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.SampleDTO'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Получение всех семплов, но без файлов
+      tags:
+      - samples
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Pack data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateSampleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UUIDResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Создает новый семпл (аудио загружается для созданного семпла через
+        UploadAudio эндпоинт по ID семпла)
+      tags:
+      - samples
+  /samples/{id}:
+    delete:
+      parameters:
+      - description: Sample ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SampleDTO'
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Удаляет семпл
+      tags:
+      - samples
+    get:
+      parameters:
+      - description: Sample ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SampleDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Получение семпла по ID
+      tags:
+      - samples
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Аудио файл (sample)
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Sample ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.DownloadURLResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Загрузка .wav аудио файла для созданного семпла
+      tags:
+      - samples
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateSampleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SampleDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Обновляет семпл
+      tags:
+      - samples
 securityDefinitions:
   BearerAuth:
     description: 'JWT токен в формате: "Bearer {token}"'
