@@ -21,6 +21,10 @@ type SampleRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (entity.Sample, error)
 }
 
+type UrlGetter interface {
+	GetSampleDownloadURL(ctx context.Context, minioKey string) (string, error)
+}
+
 type UserRepository interface {
 	GetUserByUUID(ctx context.Context, userUUID uuid.UUID) (entity.User, error)
 	UpdateUserBalance(ctx context.Context, userUUID uuid.UUID, amount int) error
@@ -30,13 +34,15 @@ type Service struct {
 	purchaseRepo PurchaseRepository
 	sampleRepo   SampleRepository
 	userRepo     UserRepository
+	url          UrlGetter
 }
 
-func New(purchaseRepo PurchaseRepository, sampleRepo SampleRepository, userRepo UserRepository) *Service {
+func New(purchaseRepo PurchaseRepository, sampleRepo SampleRepository, userRepo UserRepository, url UrlGetter) *Service {
 	return &Service{
 		purchaseRepo: purchaseRepo,
 		sampleRepo:   sampleRepo,
 		userRepo:     userRepo,
+		url:          url,
 	}
 }
 
@@ -73,13 +79,21 @@ func (s *Service) PurchaseSample(ctx context.Context, userUUID, sampleID uuid.UU
 		return entity.Purchase{}, domain.ErrInsufficientTokens
 	}
 
+	sampleURL, err := s.url.GetSampleDownloadURL(ctx, sample.MinioKey)
+	if err != nil {
+		return entity.Purchase{}, fmt.Errorf("failed to get sample download url: %w", err)
+	}
+
 	// 5. Создать покупку
 	purchase := entity.Purchase{
-		ID:        uuid.New(),
-		UserUUID:  userUUID,
-		SampleID:  sampleID,
-		Price:     sample.Price,
-		CreatedAt: time.Now(),
+		ID:          uuid.New(),
+		UserUUID:    userUUID,
+		SampleID:    sampleID,
+		Price:       sample.Price,
+		CreatedAt:   time.Now(),
+		Sample:      &sample,
+		ListenURL:   sampleURL,
+		DownloadURL: sampleURL,
 	}
 
 	purchaseID, err := s.purchaseRepo.Create(ctx, purchase)

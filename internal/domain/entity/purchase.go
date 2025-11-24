@@ -13,4 +13,8 @@ type Purchase struct {
 	SampleID  uuid.UUID
 	Price     int // цена в токенах на момент покупки
 	CreatedAt time.Time
+
+	Sample      *Sample
+	DownloadURL string
+	ListenURL   string
 }

@@ -24,7 +24,7 @@ func NewManager(repository *repository.Manager, yookassa *yookassa.Client) *Mana
 	paymentService := payment.NewService(yookassa, repository.PaymentRepository, repository.UserRepository)
 
 	musicService := music.New(repository.SampleRepository, repository.PackRepository, repository.FileRepository, repository.UserRepository)
-	purchaseService := purchase.New(repository.PurchaseRepository, repository.SampleRepository, repository.UserRepository)
+	purchaseService := purchase.New(repository.PurchaseRepository, repository.SampleRepository, repository.UserRepository, musicService)
 	return &Manager{
 		Token:    tokenService,
 		Auth:     authService,

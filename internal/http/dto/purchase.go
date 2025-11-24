@@ -18,11 +18,13 @@ type PurchaseDTO struct {
 
 // ToPurchaseDTO - конвертирует entity.Purchase в PurchaseDTO
 func ToPurchaseDTO(purchase entity.Purchase) PurchaseDTO {
+	sample := ToSampleDTO(*purchase.Sample, purchase.ListenURL, purchase.DownloadURL)
 	return PurchaseDTO{
 		ID:          purchase.ID,
 		SampleID:    purchase.SampleID,
 		Price:       purchase.Price,
 		PurchasedAt: purchase.CreatedAt,
+		Sample:      &sample,
 	}
 }
 
