@@ -60,7 +60,7 @@ func SetupRouter(container *di.Container) *gin.Engine {
 	musicHandler := music.New(container.Service.Music, container.Service.Purchase)
 
 	apiV1.Group("/samples").
-		//Use(authMiddleware).
+		Use(authMiddleware).
 		GET("", musicHandler.GetSamples).
 		GET("/:id", musicHandler.GetSample).
 		PUT("/:id", musicHandler.UpdateSample).
@@ -69,7 +69,7 @@ func SetupRouter(container *di.Container) *gin.Engine {
 		POST("", musicHandler.CreateSample)
 
 	apiV1.Group("/packs").
-		//Use(authMiddleware).
+		Use(authMiddleware).
 		GET("", musicHandler.GetPacks).
 		GET("/:id", musicHandler.GetPack).
 		PUT("", musicHandler.UpdatePack).

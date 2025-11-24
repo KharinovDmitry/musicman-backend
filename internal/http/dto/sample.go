@@ -49,7 +49,7 @@ type SampleDTO struct {
 	PackID      *uuid.UUID `json:"pack_id,omitempty"`
 	Price       int        `json:"price"`
 	ListenURL   string     `json:"listen_url"`
-	DownloadURL string     `json:"download_url,omitempty"`
+	DownloadURL string     `json:"download_url"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }

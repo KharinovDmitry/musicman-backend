@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"strings"
@@ -65,39 +66,39 @@ func (h *Handler) GetSamples(c *gin.Context) {
 		return
 	}
 	if err != nil {
+		slog.Error(err.Error())
 		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 		return
 	}
 
-	// Получить userUUID из контекста (если есть)
 	userUUIDStr := c.GetString(constant.CtxUserUUID)
-	var userUUID *uuid.UUID
-	if userUUIDStr != "" {
-		parsed, err := uuid.Parse(userUUIDStr)
-		if err == nil {
-			userUUID = &parsed
-		}
+	userUUID, err := uuid.Parse(userUUIDStr)
+	if err != nil {
+		slog.Error(err.Error())
+		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
+		return
 	}
 
 	response := make([]dto.SampleDTO, len(samples))
 	for i, sample := range samples {
 		listenURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, dto.NewApiError(fmt.Sprintf("error get download url: %s for sample id %s", err.Error(), sample.ID.String())))
+			slog.Error(err.Error())
+			c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 			return
 		}
 
-		// Определить downloadURL: только если куплен или бесплатный
 		var downloadURL string
-		if sample.Price == 0 {
+		isPurchased, err := h.purchaseChecker.IsPurchased(c.Request.Context(), userUUID, sample.ID)
+		if err != nil {
+			slog.Error(err.Error())
+			c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
+			return
+		}
+
+		if sample.Price == 0 || isPurchased {
 			// Бесплатный семпл - всегда доступен для скачивания
 			downloadURL = listenURL
-		} else if userUUID != nil && h.purchaseChecker != nil {
-			// Проверить покупку
-			isPurchased, err := h.purchaseChecker.IsPurchased(c.Request.Context(), *userUUID, sample.ID)
-			if err == nil && isPurchased {
-				downloadURL = listenURL
-			}
 		}
 
 		response[i] = dto.ToSampleDTO(sample, listenURL, downloadURL)
@@ -124,33 +125,41 @@ func (h *Handler) GetSample(c *gin.Context) {
 		return
 	}
 
+	// Получить userUUID из контекста (если есть)
+	userUUIDStr := c.GetString(constant.CtxUserUUID)
+	userUUID, err := uuid.Parse(userUUIDStr)
+	if err != nil {
+		slog.Error(err.Error())
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
 	sample, err := h.service.GetSample(c.Request.Context(), id)
 	if err != nil {
+		slog.Error(err.Error())
 		c.JSON(http.StatusNotFound, dto.NewApiError(err.Error()))
 		return
 	}
 
 	listenURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
+		slog.Error(err.Error())
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	// Получить userUUID из контекста (если есть)
-	userUUIDStr := c.GetString(constant.CtxUserUUID)
 	var downloadURL string
-	if sample.Price == 0 {
+
+	isPurchased, err := h.purchaseChecker.IsPurchased(c.Request.Context(), userUUID, sample.ID)
+	if err != nil {
+		slog.Error(err.Error())
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	if sample.Price == 0 || isPurchased {
 		// Бесплатный семпл - всегда доступен для скачивания
 		downloadURL = listenURL
-	} else if userUUIDStr != "" && h.purchaseChecker != nil {
-		userUUID, err := uuid.Parse(userUUIDStr)
-		if err == nil {
-			// Проверить покупку
-			isPurchased, err := h.purchaseChecker.IsPurchased(c.Request.Context(), userUUID, sample.ID)
-			if err == nil && isPurchased {
-				downloadURL = listenURL
-			}
-		}
 	}
 
 	c.JSON(http.StatusOK, dto.ToSampleDTO(sample, listenURL, downloadURL))
@@ -392,24 +401,7 @@ func (h *Handler) UpdateSample(c *gin.Context) {
 		return
 	}
 
-	// Получить userUUID из контекста (если есть)
-	userUUIDStr := c.GetString(constant.CtxUserUUID)
-	var downloadURL string
-	if sample.Price == 0 {
-		// Бесплатный семпл - всегда доступен для скачивания
-		downloadURL = listenURL
-	} else if userUUIDStr != "" && h.purchaseChecker != nil {
-		userUUID, err := uuid.Parse(userUUIDStr)
-		if err == nil {
-			// Проверить покупку
-			isPurchased, err := h.purchaseChecker.IsPurchased(c.Request.Context(), userUUID, sample.ID)
-			if err == nil && isPurchased {
-				downloadURL = listenURL
-			}
-		}
-	}
-
-	c.JSON(http.StatusOK, dto.ToSampleDTO(sample, listenURL, downloadURL))
+	c.JSON(http.StatusOK, dto.ToSampleDTO(sample, listenURL, listenURL))
 }
 
 // DeleteSample godoc
