@@ -4,8 +4,10 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/musicman-backend/internal/http/handler/music"
-	swaggerFiles "github.com/swaggo/files"
 	"github.com/musicman-backend/internal/http/handler/payment"
+	swaggerFiles "github.com/swaggo/files"
+	"log/slog"
+	"time"
 
 	"github.com/musicman-backend/internal/di"
 	"github.com/musicman-backend/internal/http/handler/auth"
@@ -18,6 +20,15 @@ import (
 func SetupRouter(container *di.Container) *gin.Engine {
 	router := gin.New()
 
+	router.Use(cors.New(cors.Config{
+		AllowAllOrigins:  true,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
+		AllowCredentials: false,
+		MaxAge:           12 * time.Hour,
+	}))
+	slog.Info("cors applied")
+
 	healthHandler := health.NewHandler()
 	router.GET("/health", healthHandler.Health)
 
@@ -27,7 +38,6 @@ func SetupRouter(container *di.Container) *gin.Engine {
 	apiV1.Use(
 		gin.Recovery(),
 		gin.Logger(),
-		cors.Default(),
 	)
 
 	authGroup := apiV1.Group("/auth")

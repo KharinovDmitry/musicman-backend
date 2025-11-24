@@ -63,7 +63,7 @@ func New(
 	}
 }
 
-func (s *Service) CreateSample(ctx context.Context, author, title, description, genre string, packID *uuid.UUID) (uuid.UUID, error) {
+func (s *Service) CreateSample(ctx context.Context, author, title, description, genre string, packID *uuid.UUID, price int) (uuid.UUID, error) {
 	var sampleID uuid.UUID
 	if packID != nil {
 		_, err := s.packRepo.GetByID(ctx, *packID)
@@ -98,6 +98,7 @@ func (s *Service) CreateSample(ctx context.Context, author, title, description, 
 		Genre:       genre,
 		MinioKey:    fmt.Sprintf("sample_%d_%s.wav", time.Now().Unix(), title),
 		PackID:      packID,
+		Price:       price,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -154,7 +155,7 @@ func (s *Service) GetSamples(ctx context.Context) ([]entity.Sample, error) {
 	return samples, nil
 }
 
-func (s *Service) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string, size *int64, duration *float64) (entity.Sample, error) {
+func (s *Service) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string, price *int, size *int64, duration *float64) (entity.Sample, error) {
 	existing, err := s.sampleRepo.GetByID(ctx, id)
 	if errors.Is(err, domain.ErrNotFound) {
 		return existing, err
@@ -180,6 +181,9 @@ func (s *Service) UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.U
 			return existing, fmt.Errorf("pack not found: %w", err)
 		}
 		existing.PackID = packID
+	}
+	if price != nil {
+		existing.Price = *price
 	}
 
 	if size != nil {

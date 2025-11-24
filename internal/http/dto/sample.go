@@ -13,6 +13,7 @@ type UpdateSampleRequest struct {
 	Description *string    `json:"description"`
 	Genre       *string    `json:"genre"`
 	PackID      *uuid.UUID `json:"pack_id"`
+	Price       *int       `json:"price"`
 }
 
 type CreatePackRequest struct {
@@ -46,6 +47,7 @@ type SampleDTO struct {
 	Duration    float64    `json:"duration"`
 	Size        int64      `json:"size"`
 	PackID      *uuid.UUID `json:"pack_id,omitempty"`
+	Price       int        `json:"price"`
 	DownloadURL string     `json:"download_url,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
@@ -57,6 +59,7 @@ type CreateSampleRequest struct {
 	Description string     `json:"description" binding:"required"`
 	Genre       string     `json:"genre" binding:"required"`
 	PackID      *uuid.UUID `json:"pack_id,omitempty"`
+	Price       int        `json:"price" binding:"required"`
 }
 
 type PackDTO struct {
@@ -84,6 +87,7 @@ func ToSampleDTO(sample entity.Sample, downloadURL string) SampleDTO {
 		Duration:    sample.Duration,
 		Size:        sample.Size,
 		PackID:      sample.PackID,
+		Price:       sample.Price,
 		DownloadURL: downloadURL,
 		CreatedAt:   sample.CreatedAt,
 		UpdatedAt:   sample.UpdatedAt,
@@ -99,6 +103,7 @@ func (s *SampleDTO) ToEntity() entity.Sample {
 		Duration:    s.Duration,
 		Size:        s.Size,
 		PackID:      s.PackID,
+		Price:       s.Price,
 		CreatedAt:   s.CreatedAt,
 		UpdatedAt:   s.UpdatedAt,
 	}

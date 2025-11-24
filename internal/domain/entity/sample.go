@@ -19,6 +19,7 @@ type Sample struct {
 	Size        int64
 	MinioKey    string
 	PackID      *uuid.UUID // ну типа нуллабл :)
+	Price       int        // цена в токенах
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

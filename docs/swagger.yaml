@@ -43,12 +43,15 @@ definitions:
         type: string
       pack_id:
         type: string
+      price:
+        type: integer
       title:
         type: string
     required:
     - author
     - description
     - genre
+    - price
     - title
     type: object
   dto.DownloadURLResponse:
@@ -124,6 +127,8 @@ definitions:
         type: string
       pack_id:
         type: string
+      price:
+        type: integer
       size:
         type: integer
       title:
@@ -157,6 +162,8 @@ definitions:
         type: string
       pack_id:
         type: string
+      price:
+        type: integer
       title:
         type: string
     type: object

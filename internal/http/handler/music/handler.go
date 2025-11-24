@@ -20,9 +20,9 @@ type Service interface {
 	GetSamples(ctx context.Context) ([]entity.Sample, error)
 	GetSampleDownloadURL(ctx context.Context, minioKey string) (string, error)
 	GetSample(ctx context.Context, sampleID uuid.UUID) (entity.Sample, error)
-	CreateSample(ctx context.Context, author, title, description, genre string, packID *uuid.UUID) (uuid.UUID, error)
+	CreateSample(ctx context.Context, author, title, description, genre string, packID *uuid.UUID, price int) (uuid.UUID, error)
 	UploadAudio(ctx context.Context, audioFilePath string, sampleID uuid.UUID) error
-	UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string, size *int64, duration *float64) (entity.Sample, error)
+	UpdateSample(ctx context.Context, id uuid.UUID, packID *uuid.UUID, title, author, description, genre *string, price *int, size *int64, duration *float64) (entity.Sample, error)
 	DeleteSample(ctx context.Context, id uuid.UUID) error
 
 	GetAllPacks(ctx context.Context) ([]entity.Pack, error)
@@ -181,7 +181,7 @@ func (h *Handler) UploadAudio(c *gin.Context) {
 
 	sizeMB := file.Size
 
-	if _, err := h.service.UpdateSample(c.Request.Context(), id, nil, nil, nil, nil, nil, &sizeMB, &duration); err != nil {
+	if _, err := h.service.UpdateSample(c.Request.Context(), id, nil, nil, nil, nil, nil, nil, &sizeMB, &duration); err != nil {
 		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 		return
 	}
@@ -300,7 +300,7 @@ func (h *Handler) CreateSample(c *gin.Context) {
 		return
 	}
 
-	id, err := h.service.CreateSample(c.Request.Context(), sampleDto.Author, sampleDto.Title, sampleDto.Description, sampleDto.Genre, sampleDto.PackID)
+	id, err := h.service.CreateSample(c.Request.Context(), sampleDto.Author, sampleDto.Title, sampleDto.Description, sampleDto.Genre, sampleDto.PackID, sampleDto.Price)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 		return
@@ -333,7 +333,7 @@ func (h *Handler) UpdateSample(c *gin.Context) {
 		return
 	}
 
-	sample, err := h.service.UpdateSample(c.Request.Context(), id, req.PackID, req.Title, req.Author, req.Description, req.Genre, nil, nil)
+	sample, err := h.service.UpdateSample(c.Request.Context(), id, req.PackID, req.Title, req.Author, req.Description, req.Genre, req.Price, nil, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 		return

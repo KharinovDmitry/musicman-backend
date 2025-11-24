@@ -787,6 +787,7 @@
                 "author",
                 "description",
                 "genre",
+                "price",
                 "title"
             ],
             "properties": {
@@ -801,6 +802,9 @@
                 },
                 "pack_id": {
                     "type": "string"
+                },
+                "price": {
+                    "type": "integer"
                 },
                 "title": {
                     "type": "string"
@@ -920,6 +924,9 @@
                 "pack_id": {
                     "type": "string"
                 },
+                "price": {
+                    "type": "integer"
+                },
                 "size": {
                     "type": "integer"
                 },
@@ -970,6 +977,9 @@
                 },
                 "pack_id": {
                     "type": "string"
+                },
+                "price": {
+                    "type": "integer"
                 },
                 "title": {
                     "type": "string"

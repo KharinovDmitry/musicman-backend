@@ -794,6 +794,7 @@ const docTemplate = `{
                 "author",
                 "description",
                 "genre",
+                "price",
                 "title"
             ],
             "properties": {
@@ -808,6 +809,9 @@ const docTemplate = `{
                 },
                 "pack_id": {
                     "type": "string"
+                },
+                "price": {
+                    "type": "integer"
                 },
                 "title": {
                     "type": "string"
@@ -927,6 +931,9 @@ const docTemplate = `{
                 "pack_id": {
                     "type": "string"
                 },
+                "price": {
+                    "type": "integer"
+                },
                 "size": {
                     "type": "integer"
                 },
@@ -977,6 +984,9 @@ const docTemplate = `{
                 },
                 "pack_id": {
                     "type": "string"
+                },
+                "price": {
+                    "type": "integer"
                 },
                 "title": {
                     "type": "string"
