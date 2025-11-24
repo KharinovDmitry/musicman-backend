@@ -3,6 +3,7 @@ package purchase
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -52,40 +53,53 @@ func New(purchaseService PurchaseService, sampleService SampleService) *Handler 
 func (h *Handler) PurchaseSample(c *gin.Context) {
 	// Получить userUUID из контекста
 	userUUIDStr := c.GetString(constant.CtxUserUUID)
-	if userUUIDStr == "" {
-		c.JSON(http.StatusUnauthorized, dto.NewApiError("user not authenticated"))
-		return
-	}
-
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.NewApiError("invalid user uuid"))
+		slog.Error(err.Error())
+		c.Status(http.StatusInternalServerError)
 		return
 	}
 
 	// Получить sampleID из path параметра
 	sampleID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.NewApiError("invalid sample id"))
+		slog.Error(err.Error())
+		c.Status(http.StatusInternalServerError)
 		return
 	}
 
 	// Вызвать purchaseService.PurchaseSample
 	purchase, err := h.purchaseService.PurchaseSample(c.Request.Context(), userUUID, sampleID)
 	if errors.Is(err, domain.ErrNotFound) {
-		c.JSON(http.StatusNotFound, dto.NewApiError(err.Error()))
+		c.JSON(http.StatusNotFound,
+			dto.NewApiError("Не нашли этот сэмпл… возможно, он спрятался. Попробуйте ещё раз позже 🙂"),
+		)
 		return
 	}
+
+	if errors.Is(err, domain.ErrSampleIsFree) {
+		c.JSON(http.StatusBadRequest,
+			dto.NewApiError("Этот сэмпл бесплатный — просто забирайте 😊"),
+		)
+		return
+	}
+
 	if errors.Is(err, domain.ErrAlreadyPurchased) {
-		c.JSON(http.StatusBadRequest, dto.NewApiError(err.Error()))
+		c.JSON(http.StatusBadRequest,
+			dto.NewApiError("Вы уже покупали этот сэмпл — он по-прежнему ваш 💛"),
+		)
 		return
 	}
+
 	if errors.Is(err, domain.ErrInsufficientTokens) {
-		c.JSON(http.StatusBadRequest, dto.NewApiError(err.Error()))
+		c.JSON(http.StatusBadRequest,
+			dto.NewApiError("Похоже, не хватает токенов. Пополните баланс, и всё получится 💫"),
+		)
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
+		slog.Error(err.Error())
+		c.Status(http.StatusInternalServerError)
 		return
 	}
 
@@ -106,21 +120,18 @@ func (h *Handler) PurchaseSample(c *gin.Context) {
 func (h *Handler) GetUserPurchases(c *gin.Context) {
 	// Получить userUUID из контекста
 	userUUIDStr := c.GetString(constant.CtxUserUUID)
-	if userUUIDStr == "" {
-		c.JSON(http.StatusUnauthorized, dto.NewApiError("user not authenticated"))
-		return
-	}
-
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.NewApiError("invalid user uuid"))
+		slog.Error(err.Error())
+		c.Status(http.StatusInternalServerError)
 		return
 	}
 
 	// Вызвать purchaseService.GetUserPurchases
 	purchases, err := h.purchaseService.GetUserPurchases(c.Request.Context(), userUUID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
+		slog.Error(err.Error())
+		c.Status(http.StatusInternalServerError)
 		return
 	}
 
@@ -129,13 +140,15 @@ func (h *Handler) GetUserPurchases(c *gin.Context) {
 	for i, purchase := range purchases {
 		sample, err := h.sampleService.GetSample(c.Request.Context(), purchase.SampleID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
+			slog.Error(err.Error())
+			c.Status(http.StatusInternalServerError)
 			return
 		}
 
 		downloadURL, err := h.sampleService.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
+			slog.Error(err.Error())
+			c.Status(http.StatusInternalServerError)
 			return
 		}
 

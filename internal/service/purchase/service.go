@@ -74,6 +74,10 @@ func (s *Service) PurchaseSample(ctx context.Context, userUUID, sampleID uuid.UU
 		return entity.Purchase{}, fmt.Errorf("failed to get user: %w", err)
 	}
 
+	if sample.Price == 0 {
+		return entity.Purchase{}, domain.ErrSampleIsFree
+	}
+
 	// 4. Проверить баланс токенов
 	if user.Tokens < sample.Price {
 		return entity.Purchase{}, domain.ErrInsufficientTokens

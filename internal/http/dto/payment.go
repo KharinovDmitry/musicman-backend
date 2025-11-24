@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"github.com/musicman-backend/internal/domain/constant"
 	"github.com/musicman-backend/internal/domain/entity"
 	"time"
 )
@@ -25,7 +26,7 @@ func UserPaymentsFromEntities(payments []entity.Payment) []UserPayment {
 	for i, payment := range payments {
 		res[i] = UserPayment{
 			ID:            payment.ID,
-			PaymentStatus: string(payment.PaymentStatus),
+			PaymentStatus: constant.PaymentStatusTranslate[string(payment.PaymentStatus)],
 			Description:   payment.Description,
 			Amount:        payment.Amount,
 			CreatedAt:     payment.CreatedAt,

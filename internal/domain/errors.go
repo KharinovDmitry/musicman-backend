@@ -9,4 +9,5 @@ var (
 	ErrInvalidToken       = errors.New("invalid token")
 	ErrAlreadyPurchased   = errors.New("sample already purchased")
 	ErrInsufficientTokens = errors.New("insufficient tokens")
+	ErrSampleIsFree       = errors.New("sample is free")
 )
