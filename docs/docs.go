@@ -450,6 +450,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/purchases": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех купленных семплов текущего пользователя, отсортированный по дате покупки (от новых к старым)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "purchases"
+                ],
+                "summary": "Получить список всех покупок пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.PurchaseDTO"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    }
+                }
+            }
+        },
         "/samples": {
             "get": {
                 "security": [
@@ -737,6 +777,64 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/samples/{id}/purchase": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Покупает семпл за токены пользователя. После покупки семпл можно скачивать неограниченное количество раз. Если семпл уже куплен, возвращает ошибку 400.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "purchases"
+                ],
+                "summary": "Покупка семпла",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sample ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PurchaseDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApiError"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -885,6 +983,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.PurchaseDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "purchasedAt": {
+                    "type": "string"
+                },
+                "sample": {
+                    "description": "опционально, для списка покупок",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SampleDTO"
+                        }
+                    ]
+                },
+                "sampleId": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.RegisterRequest": {
             "type": "object",
             "properties": {
@@ -926,6 +1049,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "listen_url": {
                     "type": "string"
                 },
                 "pack_id": {

@@ -97,6 +97,21 @@ definitions:
           $ref: '#/definitions/dto.SampleDTO'
         type: array
     type: object
+  dto.PurchaseDTO:
+    properties:
+      id:
+        type: string
+      price:
+        type: integer
+      purchasedAt:
+        type: string
+      sample:
+        allOf:
+        - $ref: '#/definitions/dto.SampleDTO'
+        description: опционально, для списка покупок
+      sampleId:
+        type: string
+    type: object
   dto.RegisterRequest:
     properties:
       password:
@@ -124,6 +139,8 @@ definitions:
       genre:
         type: string
       id:
+        type: string
+      listen_url:
         type: string
       pack_id:
         type: string
@@ -475,6 +492,32 @@ paths:
       summary: Получить профиль пользователя
       tags:
       - profile
+  /purchases:
+    get:
+      description: Возвращает список всех купленных семплов текущего пользователя,
+        отсортированный по дате покупки (от новых к старым)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.PurchaseDTO'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Получить список всех покупок пользователя
+      tags:
+      - purchases
   /samples:
     get:
       produces:
@@ -657,6 +700,45 @@ paths:
       summary: Обновляет семпл
       tags:
       - samples
+  /samples/{id}/purchase:
+    post:
+      description: Покупает семпл за токены пользователя. После покупки семпл можно
+        скачивать неограниченное количество раз. Если семпл уже куплен, возвращает
+        ошибку 400.
+      parameters:
+      - description: Sample ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.PurchaseDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Покупка семпла
+      tags:
+      - purchases
 securityDefinitions:
   BearerAuth:
     description: 'JWT токен в формате: "Bearer {token}"'
