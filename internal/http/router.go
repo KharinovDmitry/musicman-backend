@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/musicman-backend/internal/http/handler/music"
 	"github.com/musicman-backend/internal/http/handler/payment"
+	"github.com/musicman-backend/internal/http/handler/purchase"
 	swaggerFiles "github.com/swaggo/files"
 	"log/slog"
 	"time"
@@ -56,7 +57,7 @@ func SetupRouter(container *di.Container) *gin.Engine {
 		profileGroup.GET("/me", profileHandler.GetMyProfile)
 	}
 
-	musicHandler := music.New(container.Service.Music)
+	musicHandler := music.New(container.Service.Music, container.Service.Purchase)
 
 	apiV1.Group("/samples").
 		//Use(authMiddleware).
@@ -81,6 +82,20 @@ func SetupRouter(container *di.Container) *gin.Engine {
 		paymentHandler := payment.NewHandler(container.Service.Payment, container.Repository.PaymentRepository)
 		paymentsGroup.POST("/new", paymentHandler.NewPayment)
 		paymentsGroup.GET("/history", paymentHandler.GetPayments)
+	}
+
+	purchaseHandler := purchase.New(container.Service.Purchase, container.Service.Music)
+
+	// Покупка семпла
+	apiV1.Group("/samples").
+		Use(authMiddleware).
+		POST("/:id/purchase", purchaseHandler.PurchaseSample)
+
+	// Получение всех покупок
+	purchasesGroup := apiV1.Group("/purchases")
+	purchasesGroup.Use(authMiddleware)
+	{
+		purchasesGroup.GET("", purchaseHandler.GetUserPurchases)
 	}
 
 	return router

@@ -12,9 +12,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/musicman-backend/internal/domain"
+	"github.com/musicman-backend/internal/domain/constant"
 	"github.com/musicman-backend/internal/domain/entity"
 	"github.com/musicman-backend/internal/http/dto"
 )
+
+type PurchaseChecker interface {
+	IsPurchased(ctx context.Context, userUUID, sampleID uuid.UUID) (bool, error)
+}
 
 type Service interface {
 	GetSamples(ctx context.Context) ([]entity.Sample, error)
@@ -33,12 +38,14 @@ type Service interface {
 }
 
 type Handler struct {
-	service Service
+	service         Service
+	purchaseChecker PurchaseChecker // может быть nil, если нет авторизации
 }
 
-func New(service Service) *Handler {
+func New(service Service, purchaseChecker PurchaseChecker) *Handler {
 	return &Handler{
-		service: service,
+		service:         service,
+		purchaseChecker: purchaseChecker,
 	}
 }
 
@@ -62,15 +69,38 @@ func (h *Handler) GetSamples(c *gin.Context) {
 		return
 	}
 
+	// Получить userUUID из контекста (если есть)
+	userUUIDStr := c.GetString(constant.CtxUserUUID)
+	var userUUID *uuid.UUID
+	if userUUIDStr != "" {
+		parsed, err := uuid.Parse(userUUIDStr)
+		if err == nil {
+			userUUID = &parsed
+		}
+	}
+
 	response := make([]dto.SampleDTO, len(samples))
 	for i, sample := range samples {
-		downloadURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
+		listenURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, dto.NewApiError(fmt.Sprintf("error get download url: %s for sample id %s", err.Error(), sample.ID.String())))
 			return
 		}
 
-		response[i] = dto.ToSampleDTO(sample, downloadURL)
+		// Определить downloadURL: только если куплен или бесплатный
+		var downloadURL string
+		if sample.Price == 0 {
+			// Бесплатный семпл - всегда доступен для скачивания
+			downloadURL = listenURL
+		} else if userUUID != nil && h.purchaseChecker != nil {
+			// Проверить покупку
+			isPurchased, err := h.purchaseChecker.IsPurchased(c.Request.Context(), *userUUID, sample.ID)
+			if err == nil && isPurchased {
+				downloadURL = listenURL
+			}
+		}
+
+		response[i] = dto.ToSampleDTO(sample, listenURL, downloadURL)
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -100,13 +130,30 @@ func (h *Handler) GetSample(c *gin.Context) {
 		return
 	}
 
-	downloadURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
+	listenURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.ToSampleDTO(sample, downloadURL))
+	// Получить userUUID из контекста (если есть)
+	userUUIDStr := c.GetString(constant.CtxUserUUID)
+	var downloadURL string
+	if sample.Price == 0 {
+		// Бесплатный семпл - всегда доступен для скачивания
+		downloadURL = listenURL
+	} else if userUUIDStr != "" && h.purchaseChecker != nil {
+		userUUID, err := uuid.Parse(userUUIDStr)
+		if err == nil {
+			// Проверить покупку
+			isPurchased, err := h.purchaseChecker.IsPurchased(c.Request.Context(), userUUID, sample.ID)
+			if err == nil && isPurchased {
+				downloadURL = listenURL
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, dto.ToSampleDTO(sample, listenURL, downloadURL))
 }
 
 // UploadAudio godoc
@@ -339,13 +386,30 @@ func (h *Handler) UpdateSample(c *gin.Context) {
 		return
 	}
 
-	downloadURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
+	listenURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.ToSampleDTO(sample, downloadURL))
+	// Получить userUUID из контекста (если есть)
+	userUUIDStr := c.GetString(constant.CtxUserUUID)
+	var downloadURL string
+	if sample.Price == 0 {
+		// Бесплатный семпл - всегда доступен для скачивания
+		downloadURL = listenURL
+	} else if userUUIDStr != "" && h.purchaseChecker != nil {
+		userUUID, err := uuid.Parse(userUUIDStr)
+		if err == nil {
+			// Проверить покупку
+			isPurchased, err := h.purchaseChecker.IsPurchased(c.Request.Context(), userUUID, sample.ID)
+			if err == nil && isPurchased {
+				downloadURL = listenURL
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, dto.ToSampleDTO(sample, listenURL, downloadURL))
 }
 
 // DeleteSample godoc
@@ -439,19 +503,45 @@ func (h *Handler) GetPack(c *gin.Context) {
 		return
 	}
 
+	// Получить userUUID из контекста (если есть)
+	userUUIDStr := c.GetString(constant.CtxUserUUID)
+	var userUUID *uuid.UUID
+	if userUUIDStr != "" {
+		parsed, err := uuid.Parse(userUUIDStr)
+		if err == nil {
+			userUUID = &parsed
+		}
+	}
+
 	packSamples := make([]dto.SampleDTO, 0)
 	for _, sample := range samples {
 		if sample.PackID == nil {
 			continue
 		}
-		url, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
+		if *sample.PackID != pack.ID {
+			continue
+		}
+
+		listenURL, err := h.service.GetSampleDownloadURL(c.Request.Context(), sample.MinioKey)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, dto.NewApiError(err.Error()))
 			return
 		}
-		if *sample.PackID == pack.ID {
-			packSamples = append(packSamples, dto.ToSampleDTO(sample, url))
+
+		// Определить downloadURL: только если куплен или бесплатный
+		var downloadURL string
+		if sample.Price == 0 {
+			// Бесплатный семпл - всегда доступен для скачивания
+			downloadURL = listenURL
+		} else if userUUID != nil && h.purchaseChecker != nil {
+			// Проверить покупку
+			isPurchased, err := h.purchaseChecker.IsPurchased(c.Request.Context(), *userUUID, sample.ID)
+			if err == nil && isPurchased {
+				downloadURL = listenURL
+			}
 		}
+
+		packSamples = append(packSamples, dto.ToSampleDTO(sample, listenURL, downloadURL))
 	}
 
 	response := dto.PackWithSamplesResponse{

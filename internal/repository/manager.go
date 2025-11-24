@@ -8,6 +8,7 @@ import (
 	"github.com/musicman-backend/internal/repository/minio"
 	"github.com/musicman-backend/internal/repository/postgres/music"
 	"github.com/musicman-backend/internal/repository/postgres/payments"
+	"github.com/musicman-backend/internal/repository/postgres/purchases"
 	"github.com/musicman-backend/internal/repository/postgres/users"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,11 +18,12 @@ import (
 )
 
 type Manager struct {
-	UserRepository   *users.Repository
-	PackRepository   *music.Pack
-	SampleRepository *music.Sample
-	FileRepository   *minio.Minio
-	PaymentRepository *payments.Repository
+	UserRepository     *users.Repository
+	PackRepository     *music.Pack
+	SampleRepository   *music.Sample
+	FileRepository     *minio.Minio
+	PaymentRepository  *payments.Repository
+	PurchaseRepository *purchases.Repository
 
 	pg *pgxpool.Pool
 }
@@ -49,6 +51,7 @@ func Init(ctx context.Context, cfg *config.Config) (*Manager, error) {
 	manager.PackRepository = music.NewPack(manager.pg)
 	manager.SampleRepository = music.NewSample(manager.pg)
 	manager.PaymentRepository = payments.New(manager.pg)
+	manager.PurchaseRepository = purchases.New(manager.pg)
 	manager.FileRepository = minio.NewMinio(minioClient)
 
 	return &manager, nil

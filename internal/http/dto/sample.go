@@ -48,6 +48,7 @@ type SampleDTO struct {
 	Size        int64      `json:"size"`
 	PackID      *uuid.UUID `json:"pack_id,omitempty"`
 	Price       int        `json:"price"`
+	ListenURL   string     `json:"listen_url"`
 	DownloadURL string     `json:"download_url,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
@@ -77,7 +78,7 @@ type PackWithSamplesResponse struct {
 	Samples []SampleDTO `json:"samples"`
 }
 
-func ToSampleDTO(sample entity.Sample, downloadURL string) SampleDTO {
+func ToSampleDTO(sample entity.Sample, listenURL string, downloadURL string) SampleDTO {
 	return SampleDTO{
 		ID:          sample.ID,
 		Title:       sample.Title,
@@ -88,6 +89,7 @@ func ToSampleDTO(sample entity.Sample, downloadURL string) SampleDTO {
 		Size:        sample.Size,
 		PackID:      sample.PackID,
 		Price:       sample.Price,
+		ListenURL:   listenURL,
 		DownloadURL: downloadURL,
 		CreatedAt:   sample.CreatedAt,
 		UpdatedAt:   sample.UpdatedAt,
