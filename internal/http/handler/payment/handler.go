@@ -40,7 +40,7 @@ func NewHandler(service Service, history History) *Handler {
 // @Tags payments
 // @Param Authorization header string true "Bearer токен"
 // @Param request body dto.CreatePaymentRequest true "Данные для создания платежа. return_uri - ссылка на которую вернуть пользователя после оплаты. amount в копейках"
-// @Success 204 {string} string "Redirect — ссылка на YooKassa"
+// @Success 204 {object} dto.PaymentURL "ссылка на платеж YooKassa"
 // @Failure 400 {object} dto.ApiError "Невалидное тело запроса"
 // @Failure 500 "Ошибка сервера или не удалось создать платёж"
 // @Router /payments/new [post]
@@ -74,7 +74,7 @@ func (h *Handler) NewPayment(ctx *gin.Context) {
 		return
 	}
 
-	ctx.Redirect(http.StatusMovedPermanently, redirect)
+	ctx.JSON(http.StatusCreated, dto.PaymentURL{URL: redirect})
 }
 
 // GetPayments godoc

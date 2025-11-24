@@ -401,10 +401,10 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "301": {
-                        "description": "Redirect — ссылка на YooKassa",
+                    "204": {
+                        "description": "ссылка на платеж YooKassa",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/dto.PaymentURL"
                         }
                     },
                     "400": {
@@ -980,6 +980,14 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.SampleDTO"
                     }
+                }
+            }
+        },
+        "dto.PaymentURL": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string"
                 }
             }
         },

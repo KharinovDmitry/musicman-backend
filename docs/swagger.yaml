@@ -97,6 +97,11 @@ definitions:
           $ref: '#/definitions/dto.SampleDTO'
         type: array
     type: object
+  dto.PaymentURL:
+    properties:
+      url:
+        type: string
+    type: object
   dto.PurchaseDTO:
     properties:
       id:
@@ -460,10 +465,10 @@ paths:
         schema:
           $ref: '#/definitions/dto.CreatePaymentRequest'
       responses:
-        "301":
-          description: Redirect — ссылка на YooKassa
+        "204":
+          description: ссылка на платеж YooKassa
           schema:
-            type: string
+            $ref: '#/definitions/dto.PaymentURL'
         "400":
           description: Невалидное тело запроса
           schema:
