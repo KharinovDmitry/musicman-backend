@@ -154,8 +154,11 @@ func (r *Sample) Update(ctx context.Context, sample entity.Sample) error {
 func (r *Sample) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM samples WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed delete sample from DB: %w", err)
+	}
 
-	return fmt.Errorf("failed delete sample from DB: %w", err)
+	return nil
 }
 
 func (r *Sample) scanSample(row pgx.Row) (entity.Sample, error) {
